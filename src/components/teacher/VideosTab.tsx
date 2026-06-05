@@ -51,9 +51,8 @@ export function VideosTab() {
 
     await addVideo({
       titulo,
-      sala,
+      sala: sala as any,
       video_url: uploadedUrl,
-      maestra: state.user?.nombre.replace('Maestra ', '') ?? 'Docente',
     });
 
     setIsUploading(false);
@@ -144,8 +143,8 @@ export function VideosTab() {
                 <div>
                   <div className="font-black text-[14px] text-gray-800 mb-1">🎬 {v.titulo}</div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {v.sala !== 'Todas' && <SalaBadge sala={v.sala as Sala} />}
-                    <span className="text-xs text-gray-400">· {v.hora}hs · {fmtFecha(v.fecha)} · 👩‍🏫 {v.maestra}</span>
+                    {v.sala !== 'Todas' && <SalaBadge sala={v.sala as any} />}
+                    <span className="text-xs text-gray-400">· {fmtFecha(v.fecha)}</span>
                   </div>
                 </div>
                 <button

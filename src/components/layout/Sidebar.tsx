@@ -32,7 +32,7 @@ export function Sidebar({ role, activeTab, onTabChange }: SidebarProps) {
     ? state.messages.filter(m => !m.leido && misSalas.includes(m.sala)).length
     : 0;
 
-  const teacherTabs = [
+  const teacherTabs: { id: string; label: string; icon: any; badge?: number }[] = [
     { id: 'hoy',      label: 'Hoy',      icon: ClipboardList },
     { id: 'historial',label: 'Historial',icon: CalendarDays  },
     { id: 'ninos',    label: 'Niños',    icon: Baby          },
@@ -40,7 +40,7 @@ export function Sidebar({ role, activeTab, onTabChange }: SidebarProps) {
     { id: 'videos',   label: 'Videos',   icon: Video         },
   ];
 
-  const parentTabs = [
+  const parentTabs: { id: string; label: string; icon: any; badge?: number }[] = [
     { id: 'hoy',      label: 'Hoy',     icon: ClipboardList },
     { id: 'historial',label: 'Historial',icon: CalendarDays },
     { id: 'mensajes', label: 'Mensajes',icon: MessageCircle },

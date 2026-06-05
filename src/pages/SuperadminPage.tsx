@@ -9,7 +9,7 @@ import { useRef } from 'react';
 
 export function SuperadminPage() {
   const { logout, showToast } = useApp();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'jardines'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'jardines' | 'config'>('dashboard');
   
   const [jardines, setJardines] = useState<Jardin[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -115,7 +115,7 @@ export function SuperadminPage() {
       let finalLogoUrl = '';
       if (logoFile) {
         showToast('Subiendo logo...', 'ok');
-        const url = await uploadFile(logoFile, 'multimedia');
+        const url = await uploadFile(logoFile, 'fotos');
         if (url) finalLogoUrl = url;
         else showToast('Fallo al subir el logo, se creará sin él', 'err');
       }
@@ -151,7 +151,7 @@ export function SuperadminPage() {
       let finalLogoUrl = editingJardin.logo_url;
       if (editLogoFile) {
         showToast('Subiendo logo actualizado...', 'ok');
-        const url = await uploadFile(editLogoFile, 'multimedia');
+        const url = await uploadFile(editLogoFile, 'fotos');
         if (url) finalLogoUrl = url;
         else showToast('Fallo al subir el nuevo logo', 'err');
       }
@@ -461,7 +461,7 @@ export function SuperadminPage() {
                     <div className="flex items-center gap-3">
                       <Button 
                         type="button" 
-                        variant="outline" 
+                        variant="secondary" 
                         onClick={() => logoInputRef.current?.click()}
                       >
                         {logoFile ? 'Cambiar Logo' : '📂 Seleccionar Archivo'}
@@ -508,7 +508,7 @@ export function SuperadminPage() {
               </div>
 
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowModal(false)}>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowModal(false)}>
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isSubmitting}>
@@ -549,7 +549,7 @@ export function SuperadminPage() {
                 <div className="flex items-center gap-3">
                   <Button 
                     type="button" 
-                    variant="outline" 
+                    variant="secondary" 
                     onClick={() => editLogoInputRef.current?.click()}
                   >
                     {editLogoFile ? 'Cambiar Nuevo Logo' : '📂 Subir Nuevo Logo'}
@@ -603,7 +603,7 @@ export function SuperadminPage() {
               </div>
 
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setEditingJardin(null)}>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditingJardin(null)}>
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isSubmitting}>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import type { Jardin, Usuario, Nino, RegistroDiario, Mensaje, Video } from '../types';
+import type { Jardin, Usuario, Nino, RegistroDiario, Mensaje, Video, Notificacion } from '../types';
 import { supabase } from '../lib/supabase';
 import { nid, horaActual } from '../lib/utils';
 import { TODAY } from '../data/mock'; // We still use TODAY from mock for consistency in frontend matching
@@ -20,7 +20,7 @@ interface AppState {
 }
 
 const initialState: AppState = {
-  jardin: { nombre: 'Jardín Maternal', logo_url: null },
+  jardin: { id: '', nombre: 'Jardín Maternal', logo_url: null },
   user: null,
   kids: [],
   records: [],

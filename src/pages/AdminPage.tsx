@@ -159,7 +159,7 @@ export function AdminPage() {
         showToast('Subiendo foto...', 'ok');
         // We import uploadFile dynamically or ensure it's imported at the top
         const { uploadFile } = await import('../lib/storage');
-        const url = await uploadFile(kidAvatarFile, 'multimedia');
+        const url = await uploadFile(kidAvatarFile, 'fotos');
         if (url) avatarUrl = url;
         else showToast('Fallo al subir foto, se usará avatar por defecto', 'err');
       }
@@ -352,8 +352,8 @@ export function AdminPage() {
                                   {user.rol === 'docente' ? (
                                     <div className="flex flex-wrap gap-1">
                                       {(docenteSalas[user.id] || []).map(sala => (
-                                        <span key={sala} className="inline-block bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-100">
-                                          {sala}
+                                        <span className="inline-block bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-100">
+                                          {sala as string}
                                         </span>
                                       ))}
                                     </div>
@@ -645,7 +645,7 @@ export function AdminPage() {
               )}
 
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowModal(false)}>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowModal(false)}>
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isSubmitting}>
@@ -712,7 +712,7 @@ export function AdminPage() {
               <Select 
                 label="Sala Asignada" 
                 value={kidFormData.sala}
-                onChange={e => setKidFormData({...kidFormData, sala: e.target.value})}
+                onChange={e => setKidFormData({...kidFormData, sala: e.target.value as any})}
               >
                 {SALAS.map(s => <option key={s} value={s}>{s}</option>)}
               </Select>
@@ -732,7 +732,7 @@ export function AdminPage() {
               />
 
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowKidModal(false)}>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowKidModal(false)}>
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isSubmitting}>

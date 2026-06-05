@@ -13,11 +13,12 @@ export interface Jardin {
   nombre: string;
   logo_url: string | null;
   activo?: boolean;
+  suscripcion?: string;
 }
 
 export interface Usuario {
   id: string;
-  jardin_id: string;
+  jardin_id?: string;
   nombre: string;
   rol: Rol;
   childId?: string; // solo para familias
@@ -28,7 +29,7 @@ export interface Usuario {
 
 export interface Nino {
   id: string;
-  jardin_id: string;
+  jardin_id?: string;
   nombre: string;
   apellido: string;
   sala: Sala;
@@ -41,7 +42,7 @@ export interface Nino {
 
 export interface RegistroDiario {
   id: string;
-  jardin_id: string;
+  jardin_id?: string;
   nino_id: string;
   docente_id: string;
   fecha: string;
@@ -63,7 +64,7 @@ export interface RegistroDiario {
 
 export interface Mensaje {
   id: string;
-  jardin_id: string;
+  jardin_id?: string;
   nino_id: string;
   remitente_id: string;
   destinatario_id?: string;
@@ -78,7 +79,7 @@ export interface Mensaje {
 
 export interface Video {
   id: string;
-  jardin_id: string;
+  jardin_id?: string;
   docente_id: string;
   titulo: string;
   sala: string;
@@ -90,7 +91,7 @@ export interface Video {
 
 export interface Notificacion {
   id: string;
-  jardin_id: string;
+  jardin_id?: string;
   usuario_id: string;
   titulo: string;
   mensaje: string;

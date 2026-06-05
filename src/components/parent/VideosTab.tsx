@@ -40,7 +40,7 @@ export function ParentVideosTab() {
             {/* Video Player */}
             <div className="aspect-video w-full bg-black">
               <video 
-                src={v.url} 
+                src={v.video_url} 
                 controls 
                 controlsList="nodownload"
                 className="w-full h-full object-contain"
@@ -52,7 +52,7 @@ export function ParentVideosTab() {
             <div className="p-4">
               <h4 className="font-black text-gray-800 text-base leading-tight mb-1">{v.titulo}</h4>
               <div className="flex items-center gap-2 mt-2">
-                <SalaBadge sala={v.sala} />
+                {v.sala !== 'Todas' && <SalaBadge sala={v.sala as any} />}
                 <span className="text-xs text-gray-400 font-bold">
                   {fmtFecha(v.fecha)}
                 </span>

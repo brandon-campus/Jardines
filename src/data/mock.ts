@@ -14,6 +14,7 @@ const nowTime = () => {
 // JARDÍN
 // ============================================================
 export const mockJardin: Jardin = {
+  id: '',
   nombre: 'Jardín Maternal',
   logo_url: null,
 };
