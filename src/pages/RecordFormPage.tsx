@@ -11,6 +11,7 @@ import { SalaBadge } from '../components/ui/Badge';
 import { COMIDA_OPTIONS, ANIMO_OPTIONS, POPO_OPTIONS, COMIDAS_DEL_DIA } from '../types';
 import type { ComidaOpcion, EstadoAnimo, PopoOpcion } from '../types';
 import { horaActual } from '../lib/utils';
+import { uploadFile } from '../lib/storage';
 import { TODAY } from '../data/mock';
 
 export function RecordFormPage() {
@@ -34,6 +35,8 @@ export function RecordFormPage() {
   const [medicacion, setMedicacion] = useState(existing?.medicacion ?? '');
   const [obs, setObs] = useState(existing?.observaciones ?? '');
   const [fotoUrl, setFotoUrl] = useState<string | null>(existing?.foto_url ?? null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const fotoInputRef = useRef<HTMLInputElement>(null);
 
   const fotoMaestro = state.user?.nombre.replace('Maestra ', '') ?? 'Docente';
@@ -41,6 +44,7 @@ export function RecordFormPage() {
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    setFotoFile(f);
     const reader = new FileReader();
     reader.onload = ev => setFotoUrl(ev.target?.result as string);
     reader.readAsDataURL(f);
@@ -55,9 +59,22 @@ export function RecordFormPage() {
     return `${Math.floor(t / 60)}h ${t % 60}m`;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!kid) return;
-    saveRecord({
+    setIsSaving(true);
+    
+    let finalFotoUrl = fotoUrl;
+    if (fotoFile) {
+      showToast('Subiendo foto...', 'ok');
+      const uploadedUrl = await uploadFile(fotoFile, 'fotos');
+      if (uploadedUrl) {
+        finalFotoUrl = uploadedUrl;
+      } else {
+        showToast('Error al subir la foto', 'err');
+      }
+    }
+
+    await saveRecord({
       nino_id: kid.id,
       docente_id: state.user?.id ?? 'u1',
       fecha: TODAY,
@@ -70,10 +87,11 @@ export function RecordFormPage() {
       estado_animo: animo,
       temperatura: temp,
       medicacion,
-      foto_url: fotoUrl,
+      foto_url: finalFotoUrl,
       observaciones: obs,
       maestro: fotoMaestro,
     });
+    setIsSaving(false);
     showToast(`✅ Registro de ${kid.nombre} guardado`);
     navigate('/teacher');
   };
@@ -105,7 +123,13 @@ export function RecordFormPage() {
           ← Volver
         </button>
         <div className="flex items-center gap-4">
-          <span className="text-5xl">{kid.avatar}</span>
+          {kid.avatar && kid.avatar.startsWith('http') ? (
+            <img src={kid.avatar} alt={kid.nombre} className="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white/20 flex-shrink-0 bg-white" />
+          ) : (
+            <span className="text-5xl w-16 h-16 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 border border-white/10">
+              {kid.avatar || '👶'}
+            </span>
+          )}
           <div>
             <h2 className="text-xl font-black text-white">
               {kid.nombre} {kid.apellido}
@@ -262,33 +286,6 @@ export function RecordFormPage() {
             </div>
 
             <div>
-              {/* SALUD */}
-              <SectionHeader icon="🌡️" title="Salud" />
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <Input
-                    label="Temperatura (°C)"
-                    type="number"
-                    step="0.1"
-                    min="35"
-                    max="42"
-                    placeholder="36.5"
-                    value={temp}
-                    onChange={e => setTemp(e.target.value)}
-                  />
-                </div>
-                <div className="flex-[2]">
-                  <Input
-                    label="Medicación"
-                    placeholder="Ej: Ibuprofeno 5ml — 10:00hs"
-                    value={medicacion}
-                    onChange={e => setMedicacion(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
               {/* FOTO */}
               <SectionHeader icon="📸" title="Foto del Día" />
               <input
@@ -326,7 +323,10 @@ export function RecordFormPage() {
                       🔄 Cambiar
                     </button>
                     <button
-                      onClick={() => setFotoUrl(null)}
+                      onClick={() => {
+                        setFotoUrl(null);
+                        setFotoFile(null);
+                      }}
                       className="flex-1 py-2 bg-red-50 text-red-500 border-2 border-red-200 rounded-xl font-bold text-sm cursor-pointer hover:bg-red-100 transition-colors"
                     >
                       🗑️ Quitar
@@ -349,8 +349,8 @@ export function RecordFormPage() {
           </div>
         </div>
 
-        <Button fullWidth size="lg" className="mt-8 md:mt-10 max-w-md mx-auto block" onClick={handleSave}>
-          💾 Guardar Registro
+        <Button fullWidth size="lg" className="mt-8 md:mt-10 max-w-md mx-auto block" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? '⏳ Guardando...' : '💾 Guardar Registro'}
         </Button>
       </div>
 

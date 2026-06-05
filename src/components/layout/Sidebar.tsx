@@ -44,6 +44,7 @@ export function Sidebar({ role, activeTab, onTabChange }: SidebarProps) {
     { id: 'hoy',      label: 'Hoy',     icon: ClipboardList },
     { id: 'historial',label: 'Historial',icon: CalendarDays },
     { id: 'mensajes', label: 'Mensajes',icon: MessageCircle },
+    { id: 'videos',   label: 'Videos',  icon: Video         },
   ];
 
   const tabs = isTeacher ? teacherTabs : parentTabs;

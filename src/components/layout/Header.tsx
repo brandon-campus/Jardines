@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, Bell } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useState } from 'react';
 
 interface TeacherHeaderProps {
   title?: string;
@@ -18,6 +19,9 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
   const registered = new Set(records.filter(r => r.fecha === TODAY).map(r => r.nino_id)).size;
   const total = kids.length;
   const pending = total - registered;
+  
+  const [showNotifs, setShowNotifs] = useState(false);
+  const unreadNotifs = state.notificaciones.filter(n => !n.leida);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -61,6 +65,17 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
           <div className="text-[11px] text-white/75">Sistema de Seguimiento Diario</div>
         </div>
         <button
+          onClick={() => setShowNotifs(!showNotifs)}
+          className="relative w-9 h-9 flex items-center justify-center bg-white/20 rounded-xl hover:bg-white/30 transition-colors border-0 cursor-pointer"
+        >
+          <Bell size={16} className="text-white" />
+          {unreadNotifs.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center border-2 border-naranja">
+              {unreadNotifs.length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => navigate('/config')}
           className="w-9 h-9 flex items-center justify-center bg-white/20 rounded-xl hover:bg-white/30 transition-colors border-0 cursor-pointer"
         >
@@ -71,9 +86,42 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
           className="flex items-center gap-1.5 px-3 py-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors border-0 cursor-pointer text-white text-xs font-bold"
         >
           <LogOut size={14} />
-          Salir
+          <span className="hidden sm:inline">Salir</span>
         </button>
       </div>
+
+      {showNotifs && (
+        <div className="absolute top-16 right-4 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-slide-up">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+            <h3 className="font-bold text-gray-800 text-sm">Notificaciones</h3>
+            {unreadNotifs.length > 0 && (
+              <button 
+                onClick={() => state.notificaciones.forEach(n => !n.leida && useApp().markNotificacionesRead([n.id]))}
+                className="text-xs text-naranja font-bold hover:underline"
+              >
+                Marcar leídas
+              </button>
+            )}
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {state.notificaciones.length === 0 ? (
+              <p className="text-center text-xs text-gray-400 py-6">No hay notificaciones</p>
+            ) : (
+              state.notificaciones.slice(0, 10).map(n => (
+                <div key={n.id} className={`px-4 py-3 border-b border-gray-50 flex gap-3 ${n.leida ? 'opacity-60' : 'bg-naranja-50/30'}`}>
+                  <div className="text-xl mt-0.5">
+                    {n.tipo === 'registro' ? '📝' : n.tipo === 'mensaje' ? '💬' : n.tipo === 'video' ? '🎬' : '🔔'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800 leading-tight">{n.titulo}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{n.mensaje}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Welcome */}
       <p className="text-[13px] text-white/80 mb-0.5">
@@ -118,9 +166,11 @@ export function ParentHeader({
   kidName, kidAvatar, sala, alergias,
   hasTodayReport, reportTime, reportMaestro, animoEmoji,
 }: ParentHeaderProps) {
-  const { state, logout } = useApp();
+  const { state, logout, markNotificacionesRead } = useApp();
   const navigate = useNavigate();
   const { jardin, user } = state;
+  const [showNotifs, setShowNotifs] = useState(false);
+  const unreadNotifs = state.notificaciones.filter(n => !n.leida);
 
   return (
     <div className="bg-gradient-to-br from-violeta to-violeta-light px-4 pt-4 pb-5 rounded-b-3xl md:rounded-none shadow-[0_8px_24px_rgba(124,58,237,0.30)] md:shadow-md">
@@ -138,9 +188,16 @@ export function ParentHeader({
       <div className="flex justify-between items-start">
         <div>
           <p className="text-[13px] text-white/80 mb-1">👋 ¡Hola, {user?.nombre}!</p>
-          <h1 className="text-xl font-black text-white">
-            {kidAvatar} {kidName}
-          </h1>
+          <div className="flex items-center gap-2 mt-1 mb-1">
+            {kidAvatar && kidAvatar.startsWith('http') ? (
+              <img src={kidAvatar} alt={kidName} className="w-12 h-12 rounded-full object-cover shadow-sm border-2 border-white/20 flex-shrink-0" />
+            ) : (
+              <span className="text-3xl">{kidAvatar || '👶'}</span>
+            )}
+            <h1 className="text-2xl font-black text-white leading-tight">
+              {kidName}
+            </h1>
+          </div>
           <div className="flex gap-2 mt-2 flex-wrap">
             {sala && (
               <span className="px-2.5 py-0.5 bg-white/20 text-white text-xs font-bold rounded-full">
@@ -154,14 +211,60 @@ export function ParentHeader({
             )}
           </div>
         </div>
-        <button
-          onClick={() => { logout(); navigate('/login'); }}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors border-0 cursor-pointer text-white text-xs font-bold"
-        >
-          <LogOut size={14} />
-          Salir
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNotifs(!showNotifs)}
+            className="relative w-9 h-9 flex items-center justify-center bg-white/20 rounded-xl hover:bg-white/30 transition-colors border-0 cursor-pointer"
+          >
+            <Bell size={16} className="text-white" />
+            {unreadNotifs.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center border-2 border-violeta">
+                {unreadNotifs.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => { logout(); navigate('/login'); }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors border-0 cursor-pointer text-white text-xs font-bold"
+          >
+            <LogOut size={14} />
+            <span className="hidden sm:inline">Salir</span>
+          </button>
+        </div>
       </div>
+
+      {showNotifs && (
+        <div className="absolute top-16 right-4 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-slide-up">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+            <h3 className="font-bold text-gray-800 text-sm">Notificaciones</h3>
+            {unreadNotifs.length > 0 && (
+              <button 
+                onClick={() => state.notificaciones.forEach(n => !n.leida && markNotificacionesRead([n.id]))}
+                className="text-xs text-violeta font-bold hover:underline"
+              >
+                Marcar leídas
+              </button>
+            )}
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {state.notificaciones.length === 0 ? (
+              <p className="text-center text-xs text-gray-400 py-6">No hay notificaciones</p>
+            ) : (
+              state.notificaciones.slice(0, 10).map(n => (
+                <div key={n.id} className={`px-4 py-3 border-b border-gray-50 flex gap-3 ${n.leida ? 'opacity-60' : 'bg-violeta-50/30'}`}>
+                  <div className="text-xl mt-0.5">
+                    {n.tipo === 'registro' ? '📝' : n.tipo === 'mensaje' ? '💬' : n.tipo === 'video' ? '🎬' : '🔔'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800 leading-tight">{n.titulo}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{n.mensaje}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Report banner */}
       {hasTodayReport && (

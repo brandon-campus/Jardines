@@ -9,6 +9,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { SALAS } from '../../types';
 import type { Sala } from '../../types';
 import { fmtFecha } from '../../lib/utils';
+import { uploadFile } from '../../lib/storage';
 
 export function VideosTab() {
   const { state, addVideo, deleteVideo, showToast } = useApp();
@@ -18,6 +19,7 @@ export function VideosTab() {
   const [sala, setSala] = useState<string>('Todas');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -32,17 +34,29 @@ export function VideosTab() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!titulo.trim()) { showToast('⚠️ Escribí un título', 'err'); return; }
-    if (!videoPreviewUrl) { showToast('⚠️ Seleccioná un video', 'err'); return; }
+    if (!selectedFile) { showToast('⚠️ Seleccioná un video', 'err'); return; }
 
-    addVideo({
+    setIsUploading(true);
+    showToast('Subiendo video...', 'ok');
+    
+    const uploadedUrl = await uploadFile(selectedFile, 'videos');
+    
+    if (!uploadedUrl) {
+      showToast('Error al subir el video', 'err');
+      setIsUploading(false);
+      return;
+    }
+
+    await addVideo({
       titulo,
       sala,
-      video_url: videoPreviewUrl,
+      video_url: uploadedUrl,
       maestra: state.user?.nombre.replace('Maestra ', '') ?? 'Docente',
     });
 
+    setIsUploading(false);
     showToast('✅ Video publicado');
     setTitulo(''); setSala('Todas'); cancelSelection();
   };
@@ -100,8 +114,8 @@ export function VideosTab() {
               <div className="font-black text-green-700 text-sm mb-1">✅ Video seleccionado</div>
               <div className="text-xs text-gray-500 mb-3 truncate">{selectedFile.name}</div>
               <div className="flex gap-2">
-                <Button onClick={handlePublish} className="flex-1" size="sm">
-                  📤 Publicar
+                <Button onClick={handlePublish} className="flex-1" size="sm" disabled={isUploading}>
+                  {isUploading ? '⏳ Subiendo...' : '📤 Publicar'}
                 </Button>
                 <button
                   onClick={cancelSelection}

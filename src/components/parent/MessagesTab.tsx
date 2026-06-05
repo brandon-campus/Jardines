@@ -18,11 +18,11 @@ export function ParentMessagesTab() {
     .filter(m => m.nino_id === kid?.id)
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora));
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!texto.trim()) { showToast('⚠️ Escribí un mensaje', 'err'); return; }
     if (!kid || !state.user || !sm) return;
 
-    addMessage({
+    await addMessage({
       nino_id: kid.id,
       remitente_id: state.user.id,
       remitente_nombre: state.user.nombre,

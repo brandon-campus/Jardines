@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { AppLayout } from '../components/layout/AppLayout';
@@ -6,21 +6,35 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { mockUsers } from '../data/mock';
 
-type Rol = 'docente' | 'familia';
+type Rol = 'docente' | 'familia' | 'admin';
 
 const DOCENTE_DEMOS = [
-  { email: 'laura@jardin.com',     label: 'Maestra Laura',       pass: '1234' },
-  { email: 'ana@jardin.com',       label: 'Maestra Ana',         pass: '1234' },
+  { email: 'laura@jardin.com',     label: 'Maestra Laura',       pass: '123456' },
+  { email: 'ana@jardin.com',       label: 'Maestra Ana',         pass: '123456' },
 ];
 const FAMILIA_DEMOS = [
-  { email: 'garcia@familia.com',   label: 'Familia García (Sofía)',        pass: '1234' },
-  { email: 'rodriguez@familia.com',label: 'Familia Rodríguez (Mateo)',      pass: '1234' },
-  { email: 'lopez@familia.com',    label: 'Familia López (Emma)',           pass: '1234' },
+  { email: 'garcia@familia.com',   label: 'Familia García (Sofía)',        pass: '123456' },
+  { email: 'rodriguez@familia.com',label: 'Familia Rodríguez (Mateo)',      pass: '123456' },
+  { email: 'lopez@familia.com',    label: 'Familia López (Emma)',           pass: '123456' },
+];
+const ADMIN_DEMOS = [
+  { email: 'jorge@superadmin.com', label: 'Jorge (Superadmin)',             pass: '123456' },
+  { email: 'directora@jardin.com', label: 'Marta (Directora)',              pass: '123456' },
 ];
 
 export function LoginPage() {
   const { login, state } = useApp();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (state.user) {
+      if (state.user.rol === 'superadmin') navigate('/superadmin', { replace: true });
+      else if (state.user.rol === 'admin_jardin') navigate('/admin', { replace: true });
+      else if (state.user.rol === 'docente') navigate('/teacher', { replace: true });
+      else navigate('/parent', { replace: true });
+    }
+  }, [state.user, navigate]);
 
   const [rol, setRol] = useState<Rol>('docente');
   const [email, setEmail] = useState('');
@@ -28,22 +42,25 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const demos = rol === 'docente' ? DOCENTE_DEMOS : FAMILIA_DEMOS;
+  const demos = rol === 'docente' ? DOCENTE_DEMOS : rol === 'familia' ? FAMILIA_DEMOS : ADMIN_DEMOS;
 
-  const handleLogin = (e?: React.FormEvent) => {
+  const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError('');
     if (!email || !password) { setError('Completá los campos'); return; }
     setLoading(true);
-    setTimeout(() => {
-      const ok = login(email, password, rol);
-      setLoading(false);
-      if (!ok) {
-        setError('Usuario o contraseña incorrectos 😕');
-        return;
-      }
-      navigate(rol === 'docente' ? '/teacher' : '/parent');
-    }, 400);
+    
+    const user = await login(email, password);
+    setLoading(false);
+    if (!user) {
+      setError('Usuario o contraseña incorrectos 😕');
+      return;
+    }
+    
+    if (user.rol === 'superadmin') navigate('/superadmin');
+    else if (user.rol === 'admin_jardin') navigate('/admin');
+    else if (user.rol === 'docente') navigate('/teacher');
+    else navigate('/parent');
   };
 
   const fillDemo = (d: typeof DOCENTE_DEMOS[0]) => {
@@ -108,18 +125,18 @@ export function LoginPage() {
 
             {/* Role toggle */}
             <div className="flex bg-gray-100 rounded-xl p-1 mb-5 gap-1">
-              {(['docente', 'familia'] as Rol[]).map(r => (
+              {(['docente', 'familia', 'admin'] as Rol[]).map(r => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => { setRol(r); setError(''); setEmail(''); setPassword(''); }}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-0 cursor-pointer transition-all duration-200 ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold border-0 cursor-pointer transition-all duration-200 ${
                     rol === r
                       ? 'bg-naranja text-white shadow-[0_2px_8px_rgba(255,107,53,0.35)]'
                       : 'text-gray-500 bg-transparent hover:text-gray-700'
                   }`}
                 >
-                  {r === 'docente' ? '👩‍🏫 Docente' : '👨‍👩‍👧 Familia'}
+                  {r === 'docente' ? '👩‍🏫 Docente' : r === 'familia' ? '👨‍👩‍👧 Familia' : '⚙️ Admin'}
                 </button>
               ))}
             </div>

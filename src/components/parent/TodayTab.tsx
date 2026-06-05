@@ -87,16 +87,6 @@ export function ParentTodayTab() {
             val={`${record.siesta_inicio} a ${record.siesta_fin} · ${calcDuracion(record.siesta_inicio, record.siesta_fin)}`}
           />
         )}
-        {record.temperatura && (
-          <InfoRow
-            icon="🌡️" label="Temperatura"
-            val={`${record.temperatura}°C`}
-            color={tempColor(record.temperatura)}
-          />
-        )}
-        {record.medicacion && (
-          <InfoRow icon="💊" label="Medicación" val={record.medicacion} color="#dc2626" />
-        )}
       </Card>
 
       {/* Observaciones */}

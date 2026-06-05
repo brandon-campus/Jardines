@@ -76,7 +76,6 @@ export function ParentHistoryTab() {
                 💧 Pis: {r.control_pis ? 'Solo/a' : 'Ayuda'}
               </Chip>
               {r.popo !== 'no' && <Chip bg="#fef3c7" color="#92400e">💩 Popó: {r.popo}</Chip>}
-              {r.temperatura && <Chip bg="#f0fdf4" color="#166534">🌡️ {r.temperatura}°C</Chip>}
             </div>
 
             {r.observaciones && (

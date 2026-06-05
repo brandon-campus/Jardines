@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../lib/supabase';
 import { Card } from '../ui/Card';
 import { SalaBadge, AlergiaBadge, StatusBadge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
@@ -12,14 +13,31 @@ export function TodayTab() {
   const { state } = useApp();
   const navigate = useNavigate();
   const [filtroSala, setFiltroSala] = useState<Sala | 'Todas'>('Todas');
+  const [docenteSalas, setDocenteSalas] = useState<Sala[]>([]);
+
+  useEffect(() => {
+    async function fetchSalas() {
+      if (state.user?.rol === 'docente') {
+        const { data } = await supabase.from('docente_sala').select('sala').eq('docente_id', state.user.id);
+        if (data) setDocenteSalas(data.map(d => d.sala as Sala));
+      }
+    }
+    fetchSalas();
+  }, [state.user]);
 
   const registered = new Set(
     state.records.filter(r => r.fecha === TODAY).map(r => r.nino_id)
   );
 
-  const kidsFiltrados = state.kids.filter(k =>
+  const kidsDelDocente = state.user?.rol === 'docente' 
+    ? state.kids.filter(k => docenteSalas.includes(k.sala))
+    : state.kids;
+
+  const kidsFiltrados = kidsDelDocente.filter(k =>
     filtroSala === 'Todas' ? true : k.sala === filtroSala
   );
+
+  const salasDisponibles = state.user?.rol === 'docente' ? docenteSalas : SALAS;
 
   const kidsBySala = SALAS.reduce<Record<Sala, typeof state.kids>>((acc, sala) => {
     acc[sala] = kidsFiltrados.filter(k => k.sala === sala);
@@ -37,7 +55,7 @@ export function TodayTab() {
     <div className="px-4 pt-3 pb-28 tab-content">
       {/* Sala filter chips */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
-        {(['Todas', ...SALAS] as (Sala | 'Todas')[]).map(sala => (
+        {(['Todas', ...salasDisponibles] as (Sala | 'Todas')[]).map(sala => (
           <button
             key={sala}
             onClick={() => setFiltroSala(sala)}
@@ -81,7 +99,13 @@ export function TodayTab() {
                       style={{ borderLeftColor: done ? '#22C55E' : '#F59E0B' }}
                       padding="sm"
                     >
-                      <span className="text-3xl">{kid.avatar}</span>
+                      {kid.avatar && kid.avatar.startsWith('http') ? (
+                        <img src={kid.avatar} alt={kid.nombre} className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-100 flex-shrink-0" />
+                      ) : (
+                        <span className="text-3xl w-12 h-12 bg-naranja-50 rounded-full flex items-center justify-center border border-gray-100 flex-shrink-0">
+                          {kid.avatar || '👶'}
+                        </span>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="font-black text-[14px] text-gray-800">
                           {kid.nombre} {kid.apellido}

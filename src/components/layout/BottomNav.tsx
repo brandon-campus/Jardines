@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { SALA_MAESTRA } from '../../types';
 
 type TeacherTab = 'hoy' | 'historial' | 'ninos' | 'mensajes' | 'videos';
-type ParentTab = 'hoy' | 'historial' | 'mensajes';
+type ParentTab = 'hoy' | 'historial' | 'mensajes' | 'videos';
 
 interface TeacherBottomNavProps {
   activeTab: TeacherTab;
@@ -79,6 +79,7 @@ export function ParentBottomNav({ activeTab, onTabChange }: ParentBottomNavProps
     { id: 'hoy',      label: 'Hoy',     icon: ClipboardList },
     { id: 'historial',label: 'Historial',icon: CalendarDays },
     { id: 'mensajes', label: 'Mensajes',icon: MessageCircle },
+    { id: 'videos',   label: 'Videos',  icon: Video },
   ];
 
   return (

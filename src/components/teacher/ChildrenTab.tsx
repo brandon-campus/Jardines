@@ -34,12 +34,12 @@ export function ChildrenTab() {
     setSala('Maternal'); setDob(''); setAlergias('Ninguna');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!nombre.trim() || !apellido.trim()) {
       showToast('⚠️ El nombre y apellido son obligatorios', 'err');
       return;
     }
-    addKid({ nombre, apellido, sala, avatar, fecha_nacimiento: dob, alergias, familia_id: null });
+    await addKid({ nombre, apellido, sala, avatar, fecha_nacimiento: dob, alergias, familia_id: null });
     showToast(`✅ ${nombre} ${apellido} agregado al jardín`);
     resetForm();
     setShowAdd(false);
@@ -61,7 +61,13 @@ export function ChildrenTab() {
           {state.kids.map(kid => (
             <Card key={kid.id}>
               <div className="flex items-center gap-3">
-                <span className="text-4xl">{kid.avatar}</span>
+                {kid.avatar && kid.avatar.startsWith('http') ? (
+                  <img src={kid.avatar} alt={kid.nombre} className="w-14 h-14 rounded-full object-cover shadow-sm border border-gray-100 flex-shrink-0" />
+                ) : (
+                  <span className="text-4xl w-14 h-14 bg-naranja-50 rounded-full flex items-center justify-center border border-gray-100 flex-shrink-0">
+                    {kid.avatar || '👶'}
+                  </span>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="font-black text-[15px] text-gray-800">
                     {kid.nombre} {kid.apellido}
@@ -149,9 +155,9 @@ export function ChildrenTab() {
       <ConfirmModal
         open={!!confirmRemove}
         onClose={() => setConfirmRemove(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (confirmRemove) {
-            removeKid(confirmRemove.id);
+            await removeKid(confirmRemove.id);
             showToast(`${confirmRemove.nombre} fue quitado del jardín`);
           }
         }}

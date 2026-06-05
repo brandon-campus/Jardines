@@ -7,10 +7,11 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { ParentTodayTab } from '../components/parent/TodayTab';
 import { ParentHistoryTab } from '../components/parent/HistoryTab';
 import { ParentMessagesTab } from '../components/parent/MessagesTab';
+import { ParentVideosTab } from '../components/parent/VideosTab';
 import { animoEmoji } from '../lib/utils';
 import { TODAY } from '../data/mock';
 
-type Tab = 'hoy' | 'historial' | 'mensajes';
+type Tab = 'hoy' | 'historial' | 'mensajes' | 'videos';
 
 export function ParentPage() {
   const { state } = useApp();
@@ -26,6 +27,7 @@ export function ParentPage() {
       case 'hoy':       return <ParentTodayTab />;
       case 'historial': return <ParentHistoryTab />;
       case 'mensajes':  return <ParentMessagesTab />;
+      case 'videos':    return <ParentVideosTab />;
     }
   };
 

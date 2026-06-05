@@ -6,24 +6,29 @@ export type Sala = 'Maternal' | 'Sala de 1' | 'Sala de 2' | 'Sala de 3';
 export type ComidaOpcion = 'todo' | 'poco' | 'nada';
 export type EstadoAnimo = 'muy_bien' | 'feliz' | 'tranquilo' | 'lloron' | 'irritable';
 export type PopoOpcion = 'no' | 'poco' | 'mucho';
-export type Rol = 'docente' | 'familia';
+export type Rol = 'docente' | 'familia' | 'superadmin' | 'admin_jardin';
 
 export interface Jardin {
+  id: string;
   nombre: string;
   logo_url: string | null;
+  activo?: boolean;
 }
 
 export interface Usuario {
   id: string;
+  jardin_id: string;
   nombre: string;
   rol: Rol;
   childId?: string; // solo para familias
   email: string;
   password: string;
+  avatar_url?: string;
 }
 
 export interface Nino {
   id: string;
+  jardin_id: string;
   nombre: string;
   apellido: string;
   sala: Sala;
@@ -36,6 +41,7 @@ export interface Nino {
 
 export interface RegistroDiario {
   id: string;
+  jardin_id: string;
   nino_id: string;
   docente_id: string;
   fecha: string;
@@ -57,8 +63,10 @@ export interface RegistroDiario {
 
 export interface Mensaje {
   id: string;
+  jardin_id: string;
   nino_id: string;
   remitente_id: string;
+  destinatario_id?: string;
   remitente_nombre: string;
   sala: Sala;
   turno: string;
@@ -70,13 +78,26 @@ export interface Mensaje {
 
 export interface Video {
   id: string;
+  jardin_id: string;
+  docente_id: string;
   titulo: string;
   sala: string;
   video_url: string;
+  thumbnail_url?: string;
   fecha: string;
-  hora: string;
-  maestra: string;
-  file?: File;
+  created_at: string;
+}
+
+export interface Notificacion {
+  id: string;
+  jardin_id: string;
+  usuario_id: string;
+  titulo: string;
+  mensaje: string;
+  tipo: 'registro' | 'mensaje' | 'aviso' | 'video';
+  referencia_id?: string;
+  leida: boolean;
+  created_at: string;
 }
 
 // Configuración de colores por sala

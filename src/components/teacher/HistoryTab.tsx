@@ -55,7 +55,15 @@ export function HistoryTab() {
                 {/* Header */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
-                    {kid && <span className="text-3xl">{kid.avatar}</span>}
+                    {kid && (
+                      kid.avatar && kid.avatar.startsWith('http') ? (
+                        <img src={kid.avatar} alt={kid.nombre} className="w-12 h-12 rounded-full object-cover shadow-sm flex-shrink-0" />
+                      ) : (
+                        <span className="text-3xl w-12 h-12 bg-naranja-50 rounded-full flex items-center justify-center flex-shrink-0">
+                          {kid.avatar || '👶'}
+                        </span>
+                      )
+                    )}
                     <div>
                       {kid && (
                         <div className="font-black text-[14px] text-gray-800">
@@ -114,14 +122,7 @@ export function HistoryTab() {
                   {r.popo !== 'no' && (
                     <Chip bg="#fef3c7" color="#92400e">💩 Popó: {r.popo}</Chip>
                   )}
-                  {r.temperatura && (
-                    <Chip bg="#f0fdf4" color={tempColor(r.temperatura)}>
-                      🌡️ {r.temperatura}°C
-                    </Chip>
-                  )}
-                  {r.medicacion && (
-                    <Chip bg="#fee2e2" color="#991b1b">💊 {r.medicacion}</Chip>
-                  )}
+
                 </div>
 
                 {/* Obs */}
