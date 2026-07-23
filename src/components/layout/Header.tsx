@@ -61,8 +61,8 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-black text-base text-white leading-tight truncate">{jardin.nombre}</div>
-          <div className="text-[11px] text-white/75">Sistema de Seguimiento Diario</div>
+          <div className="font-black text-lg text-white leading-tight truncate">{jardin.nombre}</div>
+          <div className="text-xs font-medium text-white/90">Sistema de Seguimiento Diario</div>
         </div>
         <button
           onClick={() => setShowNotifs(!showNotifs)}
@@ -124,10 +124,10 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
       )}
 
       {/* Welcome */}
-      <p className="text-[13px] text-white/80 mb-0.5">
+      <p className="text-[15px] font-medium text-white mb-0.5">
         👋 Bienvenida, {user?.nombre}
       </p>
-      <p className="text-[11px] text-white/65">
+      <p className="text-xs font-medium text-white/90">
         🗓️ {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
       </p>
 
@@ -142,8 +142,8 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
             key={stat.label}
             className="flex-1 bg-white/18 rounded-xl py-2 px-1 text-center"
           >
-            <div className="text-xl font-black text-white">{stat.value}</div>
-            <div className="text-[10px] text-white/85">{stat.label}</div>
+            <div className="text-2xl font-black text-white">{stat.value}</div>
+            <div className="text-xs font-semibold text-white/95">{stat.label}</div>
           </div>
         ))}
       </div>

@@ -12,7 +12,9 @@ export function ParentMessagesTab() {
   const [texto, setTexto] = useState('');
 
   const kid = state.kids.find(k => k.id === state.user?.childId);
-  const sm = kid ? (SALA_MAESTRA[kid.sala] ?? { maestro: 'la maestra', turno: 'Mañana' }) : null;
+  const maestrasId = state.docenteSalas.filter(ds => ds.sala === kid?.sala).map(ds => ds.docente_id);
+  const maestras = state.docentes.filter(d => maestrasId.includes(d.id));
+  const maestroName = maestras.length > 0 ? maestras.map(m => m.nombre).join(' y ') : 'Las maestras';
 
   const msgs = state.messages
     .filter(m => m.nino_id === kid?.id)
@@ -20,23 +22,23 @@ export function ParentMessagesTab() {
 
   const handleSend = async () => {
     if (!texto.trim()) { showToast('⚠️ Escribí un mensaje', 'err'); return; }
-    if (!kid || !state.user || !sm) return;
+    if (!kid || !state.user) return;
 
     await addMessage({
       nino_id: kid.id,
       remitente_id: state.user.id,
       remitente_nombre: state.user.nombre,
       sala: kid.sala,
-      turno: sm.turno,
+      turno: 'Mañana', // Defaulting since shift depends on jardin setup, can be improved later
       contenido: texto.trim(),
       leido: false,
     });
 
-    showToast(`✅ Mensaje enviado a ${sm.maestro}`);
+    showToast(`✅ Mensaje enviado a ${maestroName}`);
     setTexto('');
   };
 
-  if (!kid || !sm) return <EmptyState icon="😕" title="Niño no encontrado" />;
+  if (!kid) return <EmptyState icon="😕" title="Niño no encontrado" />;
 
   return (
     <div className="px-4 pt-3 pb-28 tab-content">
@@ -46,9 +48,9 @@ export function ParentMessagesTab() {
         style={{ background: 'linear-gradient(135deg, #7C3AED, #8B5CF6)' }}
       >
         <div className="text-[12px] opacity-80 mb-1">📨 Tu mensaje llega a:</div>
-        <div className="font-black text-[15px]">{sm.maestro}</div>
+        <div className="font-black text-[15px]">{maestroName}</div>
         <div className="text-[13px] opacity-85 mt-0.5">
-          {kid.sala} · Turno {sm.turno}
+          {kid.sala}
         </div>
       </div>
 
@@ -59,7 +61,7 @@ export function ParentMessagesTab() {
           value={texto}
           onChange={e => setTexto(e.target.value)}
           rows={4}
-          placeholder={`Ej: ${sm.maestro.replace('Maestra ', '')}, quiero comunicarle que...`}
+          placeholder={`Ej: ${maestroName.replace('Maestra ', '')}, quiero comunicarle que...`}
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-800 bg-white placeholder:text-gray-400 placeholder:font-normal resize-y leading-relaxed focus:outline-none focus:border-violeta focus:ring-2 focus:ring-violeta/20 transition-all mb-3"
         />
         <button
@@ -73,32 +75,32 @@ export function ParentMessagesTab() {
       </Card>
 
       {/* Sent messages */}
-      <h3 className="text-[15px] font-black text-gray-700 mb-3">📬 Mensajes enviados</h3>
+      <h3 className="text-[15px] font-black text-gray-700 mb-3">📬 Buzón de mensajes</h3>
       {msgs.length === 0 ? (
-        <EmptyState icon="📭" title="Aún no enviaste mensajes" />
+        <EmptyState icon="📭" title="Aún no hay mensajes" />
       ) : (
-        <div className="flex flex-col gap-3">
-          {msgs.map(m => (
-            <Card key={m.id} accent={m.leido ? '#22c55e' : '#f59e0b'}>
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-1.5 text-[12px] text-gray-400">
-                  <SalaBadge sala={m.sala} />
-                  <span>· Turno {m.turno}</span>
-                  <span>· {m.hora}hs</span>
-                  <span>· {fmtFecha(m.fecha)}</span>
+        <div className="flex flex-col gap-4">
+          {msgs.map(m => {
+            const isFromMe = m.remitente_id === state.user?.id;
+            return (
+              <div key={m.id} className={`flex flex-col ${isFromMe ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
+                  isFromMe ? 'bg-orange-100 text-gray-800 rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
+                }`}>
+                  {!isFromMe && <div className="text-[11px] font-bold text-violet-600 mb-1">{m.remitente_nombre}</div>}
+                  <div className="text-[14px] leading-relaxed">{m.contenido}</div>
+                  <div className={`text-[10px] mt-1.5 flex items-center gap-1 ${isFromMe ? 'text-gray-500 justify-end' : 'text-gray-400'}`}>
+                    <span>{m.hora}hs · {fmtFecha(m.fecha)}</span>
+                    {isFromMe && (
+                      <span style={{ color: m.leido ? '#16a34a' : '#d97706' }}>
+                        {m.leido ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span
-                  className="text-[12px] font-bold"
-                  style={{ color: m.leido ? '#16a34a' : '#d97706' }}
-                >
-                  {m.leido ? '✅ Leído' : '🕐 Sin leer'}
-                </span>
               </div>
-              <div className="bg-violet-50 rounded-xl px-3 py-2.5 text-[14px] text-gray-700 leading-relaxed">
-                {m.contenido}
-              </div>
-            </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

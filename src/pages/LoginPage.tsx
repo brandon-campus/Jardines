@@ -4,23 +4,7 @@ import { useApp } from '../context/AppContext';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { mockUsers } from '../data/mock';
-
 type Rol = 'docente' | 'familia' | 'admin';
-
-const DOCENTE_DEMOS = [
-  { email: 'laura@jardin.com',     label: 'Maestra Laura',       pass: '123456' },
-  { email: 'ana@jardin.com',       label: 'Maestra Ana',         pass: '123456' },
-];
-const FAMILIA_DEMOS = [
-  { email: 'garcia@familia.com',   label: 'Familia García (Sofía)',        pass: '123456' },
-  { email: 'rodriguez@familia.com',label: 'Familia Rodríguez (Mateo)',      pass: '123456' },
-  { email: 'lopez@familia.com',    label: 'Familia López (Emma)',           pass: '123456' },
-];
-const ADMIN_DEMOS = [
-  { email: 'jorge@superadmin.com', label: 'Jorge (Superadmin)',             pass: '123456' },
-  { email: 'directora@jardin.com', label: 'Marta (Directora)',              pass: '123456' },
-];
 
 export function LoginPage() {
   const { login, state } = useApp();
@@ -42,7 +26,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const demos = rol === 'docente' ? DOCENTE_DEMOS : rol === 'familia' ? FAMILIA_DEMOS : ADMIN_DEMOS;
+
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -63,11 +47,7 @@ export function LoginPage() {
     else navigate('/parent');
   };
 
-  const fillDemo = (d: typeof DOCENTE_DEMOS[0]) => {
-    setEmail(d.email);
-    setPassword(d.pass);
-    setError('');
-  };
+
 
   return (
     <AppLayout>
@@ -169,25 +149,7 @@ export function LoginPage() {
               </div>
             </form>
 
-            {/* Demo accounts */}
-            <div className="bg-naranja-50 rounded-2xl p-4 border border-dashed border-naranja-200 mt-2">
-              <p className="text-[11px] font-bold text-naranja-700 text-center mb-3 uppercase tracking-wider">
-                Cuentas Demo
-              </p>
-              <div className="flex flex-col gap-2">
-                {demos.map(d => (
-                  <button
-                    key={d.email}
-                    type="button"
-                    onClick={() => fillDemo(d)}
-                    className="bg-white border border-naranja-200 rounded-xl px-3 py-2.5 text-left cursor-pointer hover:bg-naranja-50 hover:border-naranja-300 transition-colors"
-                  >
-                    <span className="text-[13px] font-bold text-naranja">{d.label}</span>
-                    <span className="text-[12px] text-gray-400 ml-2">— {d.pass}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+
           </div>
         </div>
       </div>

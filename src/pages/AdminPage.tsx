@@ -121,10 +121,16 @@ export function AdminPage() {
         }
       } else {
         // Creating new user
+        let finalNombre = formData.nombre.trim();
+        if (userRole === 'familia' && !finalNombre.toLowerCase().startsWith('familia')) {
+          finalNombre = 'Familia ' + finalNombre;
+        }
+
         const payload = {
           action: 'create-user',
           payload: {
             ...formData,
+            nombre: finalNombre,
             rol: userRole,
             jardin_id: state.user?.jardin_id
           }
@@ -153,7 +159,8 @@ export function AdminPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      let avatarUrl = editingKid?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + kidFormData.nombre;
+      let defaultAvatar = kidFormData.sala === 'Maternal' ? '👶' : '🧒';
+      let avatarUrl = editingKid?.avatar || defaultAvatar;
       
       if (kidAvatarFile) {
         showToast('Subiendo foto...', 'ok');
@@ -570,11 +577,11 @@ export function AdminPage() {
               {!editingUser && (
                 <>
                   <Input 
-                    label="Nombre Completo" 
+                    label={userRole === 'familia' ? "Apellido de la familia" : "Nombre Completo"}
                     required 
                     value={formData.nombre}
                     onChange={e => setFormData({...formData, nombre: e.target.value})}
-                    placeholder="Ej: María Gómez" 
+                    placeholder={userRole === 'familia' ? "Ej: Muñoz" : "Ej: María Gómez"}
                   />
                   
                   <Input 

@@ -15,6 +15,8 @@ interface AppState {
   messages: Mensaje[];
   videos: Video[];
   notificaciones: Notificacion[];
+  docenteSalas: { id: string; docente_id: string; sala: string }[];
+  docentes: Usuario[];
   toast: { msg: string; type: 'ok' | 'err' } | null;
   loading: boolean;
 }
@@ -27,6 +29,8 @@ const initialState: AppState = {
   messages: [],
   videos: [],
   notificaciones: [],
+  docenteSalas: [],
+  docentes: [],
   toast: null,
   loading: true,
 };
@@ -44,6 +48,8 @@ type Action =
   | { type: 'SET_MESSAGES'; payload: Mensaje[] }
   | { type: 'SET_VIDEOS'; payload: Video[] }
   | { type: 'SET_NOTIFICACIONES'; payload: Notificacion[] }
+  | { type: 'SET_DOCENTE_SALAS'; payload: { id: string; docente_id: string; sala: string }[] }
+  | { type: 'SET_DOCENTES'; payload: Usuario[] }
   | { type: 'ADD_KID'; payload: Nino }
   | { type: 'REMOVE_KID'; payload: string }
   | { type: 'UPDATE_KID'; payload: Nino }
@@ -107,6 +113,10 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, videos: state.videos.filter(v => v.id !== action.payload) };
     case 'SET_NOTIFICACIONES':
       return { ...state, notificaciones: action.payload };
+    case 'SET_DOCENTE_SALAS':
+      return { ...state, docenteSalas: action.payload };
+    case 'SET_DOCENTES':
+      return { ...state, docentes: action.payload };
     case 'ADD_NOTIFICACION':
       return { ...state, notificaciones: [action.payload, ...state.notificaciones] };
     case 'MARK_NOTIFICACIONES_READ':
@@ -152,21 +162,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fetchData = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
-    const [jardinRes, kidsRes, recordsRes, msgsRes, videosRes, notifRes] = await Promise.all([
+    const [jardinRes, kidsRes, recordsRes, msgsRes, videosRes, notifRes, docenteSalasRes, docentesRes] = await Promise.all([
       supabase.from('jardines').select('*').maybeSingle(),
       supabase.from('ninos').select('*').eq('activo', true),
       supabase.from('registros_diarios').select('*'),
       supabase.from('mensajes').select('*'),
       supabase.from('videos').select('*'),
-      supabase.from('notificaciones').select('*')
+      supabase.from('notificaciones').select('*'),
+      supabase.from('docente_sala').select('*'),
+      supabase.from('profiles').select('*').in('rol', ['docente', 'admin_jardin'])
     ]);
 
     if (jardinRes.data) dispatch({ type: 'SET_JARDIN', payload: jardinRes.data });
-    if (kidsRes.data) dispatch({ type: 'SET_KIDS', payload: kidsRes.data });
+    if (kidsRes.data) {
+      dispatch({ type: 'SET_KIDS', payload: kidsRes.data });
+      // Auto-fix adult avatars to kid-friendly ones
+      kidsRes.data.forEach(kid => {
+        if (kid.avatar && typeof kid.avatar === 'string' && kid.avatar.includes('dicebear')) {
+          const newAvatar = kid.sala === 'Maternal' ? '👶' : '🧒';
+          supabase.from('ninos').update({ avatar: newAvatar }).eq('id', kid.id).then();
+        }
+      });
+    }
     if (recordsRes.data) dispatch({ type: 'SET_RECORDS', payload: recordsRes.data });
     if (msgsRes.data) dispatch({ type: 'SET_MESSAGES', payload: msgsRes.data });
     if (videosRes.data) dispatch({ type: 'SET_VIDEOS', payload: videosRes.data });
     if (notifRes.data) dispatch({ type: 'SET_NOTIFICACIONES', payload: notifRes.data });
+    if (docenteSalasRes.data) dispatch({ type: 'SET_DOCENTE_SALAS', payload: docenteSalasRes.data });
+    if (docentesRes.data) dispatch({ type: 'SET_DOCENTES', payload: docentesRes.data as Usuario[] });
     
     dispatch({ type: 'SET_LOADING', payload: false });
   }, []);
