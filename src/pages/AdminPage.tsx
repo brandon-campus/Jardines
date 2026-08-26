@@ -21,6 +21,8 @@ export function AdminPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userRole, setUserRole] = useState<'docente' | 'familia'>('docente');
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
+  const [userAvatarFile, setUserAvatarFile] = useState<File | null>(null);
+  const userAvatarInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -104,7 +106,15 @@ export function AdminPage() {
       if (editingUser) {
         // Only updating profile and salas for existing docente
         if (editingUser.rol === 'docente' || editingUser.rol === 'familia') {
-          await supabase.from('profiles').update({ nombre: formData.nombre }).eq('id', editingUser.id);
+          let userAvatarUrl = editingUser.avatar_url;
+          if (userAvatarFile) {
+            showToast('Subiendo foto del usuario...', 'ok');
+            const { uploadFile } = await import('../lib/storage');
+            const url = await uploadFile(userAvatarFile, 'fotos');
+            if (url) userAvatarUrl = url;
+          }
+
+          await supabase.from('profiles').update({ nombre: formData.nombre, avatar_url: userAvatarUrl }).eq('id', editingUser.id);
           
           if (editingUser.rol === 'docente') {
             await supabase.from('docente_sala').delete().eq('docente_id', editingUser.id);
@@ -130,13 +140,22 @@ export function AdminPage() {
           finalNombre = 'Familia ' + finalNombre;
         }
 
+        let userAvatarUrl = null;
+        if (userAvatarFile) {
+          showToast('Subiendo foto del usuario...', 'ok');
+          const { uploadFile } = await import('../lib/storage');
+          const url = await uploadFile(userAvatarFile, 'fotos');
+          if (url) userAvatarUrl = url;
+        }
+
         const payload = {
           action: 'create-user',
           payload: {
             ...formData,
             nombre: finalNombre,
             rol: userRole,
-            jardin_id: state.user?.jardin_id
+            jardin_id: state.user?.jardin_id,
+            avatar_url: userAvatarUrl
           }
         };
 
@@ -334,6 +353,7 @@ export function AdminPage() {
                     } else {
                       setEditingUser(null);
                       setFormData({ nombre: '', email: '', password: '', salas: [], child_id: '' });
+                      setUserAvatarFile(null);
                       setUserRole(activeTab === 'docentes' ? 'docente' : 'familia');
                       setShowModal(true);
                     }
@@ -377,7 +397,11 @@ export function AdminPage() {
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border border-gray-100 ${
                                       user.rol === 'docente' ? 'bg-orange-50' : 'bg-blue-50'
                                     }`}>
-                                      {user.rol === 'docente' ? '👩‍🏫' : '👨‍👩‍👧'}
+                                      {user.avatar_url ? (
+                                        <img src={user.avatar_url} alt={user.nombre} className="w-10 h-10 rounded-full object-cover" />
+                                      ) : (
+                                        user.rol === 'docente' ? '👩‍🏫' : '👨‍👩‍👧'
+                                      )}
                                     </div>
                                     <div>
                                       <p className="font-bold text-gray-800">{user.nombre}</p>
@@ -414,6 +438,7 @@ export function AdminPage() {
                                           setEditingUser(user);
                                           setUserRole('docente');
                                           setFormData({ ...formData, nombre: user.nombre, email: user.email, password: '', salas: docenteSalas[user.id] || [] });
+                                          setUserAvatarFile(null);
                                           setShowModal(true);
                                         } else {
                                           showToast('La gestión de familias estará disponible pronto');
@@ -616,6 +641,29 @@ export function AdminPage() {
             </div>
             
             <form onSubmit={handleSaveUser} className="p-6 overflow-y-auto flex-1 flex flex-col gap-5">
+              <div className="flex flex-col items-center gap-3 mb-2">
+                <input 
+                  type="file" 
+                  ref={userAvatarInputRef}
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={e => setUserAvatarFile(e.target.files?.[0] || null)}
+                />
+                <div 
+                  className="w-20 h-20 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-naranja hover:bg-orange-50 transition-colors overflow-hidden"
+                  onClick={() => userAvatarInputRef.current?.click()}
+                >
+                  {userAvatarFile ? (
+                    <img src={URL.createObjectURL(userAvatarFile)} alt="Preview" className="w-full h-full object-cover" />
+                  ) : editingUser?.avatar_url ? (
+                    <img src={editingUser.avatar_url} alt="Current" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl">{userRole === 'docente' ? '👩‍🏫' : '👨‍👩‍👧'}</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 font-bold text-center">Toca para {editingUser ? 'cambiar' : 'subir'} foto</p>
+              </div>
+
               <Input 
                 label={userRole === 'familia' ? "Apellido de la familia" : "Nombre Completo"}
                 required 
