@@ -10,15 +10,22 @@ export function HistoryTab() {
   const { state } = useApp();
   const [filterKid, setFilterKid] = useState<string>('todos');
 
-  const sorted = [...state.records].sort((a, b) =>
-    b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora)
-  );
+  const assignedSalas = state.docenteSalas
+    .filter(ds => ds.docente_id === state.user?.id)
+    .map(ds => ds.sala);
+
+  const allowedKids = state.kids.filter(k => assignedSalas.includes(k.sala));
+  const allowedKidIds = new Set(allowedKids.map(k => k.id));
+
+  const sorted = [...state.records]
+    .filter(r => allowedKidIds.has(r.nino_id))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora));
 
   const filtered = filterKid === 'todos'
     ? sorted
     : sorted.filter(r => r.nino_id === filterKid);
 
-  const kidMap = Object.fromEntries(state.kids.map(k => [k.id, k]));
+  const kidMap = Object.fromEntries(allowedKids.map(k => [k.id, k]));
 
   const ccMap = Object.fromEntries(
     COMIDA_OPTIONS.map(o => [o.v, { color: o.color, bg: o.bg }])
@@ -38,7 +45,7 @@ export function HistoryTab() {
           className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700 bg-white focus:outline-none focus:border-naranja"
         >
           <option value="todos">Todos los niños</option>
-          {state.kids.map(k => (
+          {allowedKids.map(k => (
             <option key={k.id} value={k.id}>{k.nombre} {k.apellido}</option>
           ))}
         </select>

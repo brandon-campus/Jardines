@@ -37,7 +37,8 @@ export function AdminPage() {
     apellido: '',
     sala: SALAS[0],
     fecha_nacimiento: '',
-    alergias: ''
+    alergias: '',
+    sexo: 'M' as 'M' | 'F'
   });
   const [kidAvatarFile, setKidAvatarFile] = useState<File | null>(null);
   const kidAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -101,23 +102,26 @@ export function AdminPage() {
     
     try {
       if (editingUser) {
-        // Only updating salas for existing docente
-        if (editingUser.rol === 'docente') {
-          // Delete old
-          await supabase.from('docente_sala').delete().eq('docente_id', editingUser.id);
-          // Insert new
-          if (formData.salas.length > 0) {
-            const inserts = formData.salas.map(s => ({
-              docente_id: editingUser.id,
-              jardin_id: state.user?.jardin_id,
-              sala: s
-            }));
-            await supabase.from('docente_sala').insert(inserts);
+        // Only updating profile and salas for existing docente
+        if (editingUser.rol === 'docente' || editingUser.rol === 'familia') {
+          await supabase.from('profiles').update({ nombre: formData.nombre }).eq('id', editingUser.id);
+          
+          if (editingUser.rol === 'docente') {
+            await supabase.from('docente_sala').delete().eq('docente_id', editingUser.id);
+            if (formData.salas.length > 0) {
+              const inserts = formData.salas.map(s => ({
+                docente_id: editingUser.id,
+                jardin_id: state.user?.jardin_id,
+                sala: s
+              }));
+              await supabase.from('docente_sala').insert(inserts);
+            }
           }
-          showToast('Salas actualizadas con éxito');
-        } else {
-           // Si se quisiera editar algo de familia, iría acá
-           showToast('No se puede editar este usuario por ahora');
+          if (formData.password) {
+            showToast('Usuario actualizado. El cambio de contraseña requiere backend.', 'ok');
+          } else {
+            showToast('Usuario actualizado con éxito');
+          }
         }
       } else {
         // Creating new user
@@ -159,8 +163,10 @@ export function AdminPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      let defaultAvatar = kidFormData.sala === 'Maternal' ? '👶' : '🧒';
-      let avatarUrl = editingKid?.avatar || defaultAvatar;
+      let defaultAvatar = kidFormData.sala === 'Maternal' ? '👶' : (kidFormData.sexo === 'M' ? '👦' : '👧');
+      let avatarUrl = editingKid?.avatar && editingKid.avatar !== '👶' && editingKid.avatar !== '👦' && editingKid.avatar !== '👧' 
+        ? editingKid.avatar 
+        : defaultAvatar;
       
       if (kidAvatarFile) {
         showToast('Subiendo foto...', 'ok');
@@ -179,6 +185,7 @@ export function AdminPage() {
         fecha_nacimiento: kidFormData.fecha_nacimiento || null,
         alergias: kidFormData.alergias || null,
         avatar: avatarUrl,
+        sexo: kidFormData.sexo,
       };
 
       if (editingKid) {
@@ -202,10 +209,34 @@ export function AdminPage() {
 
   const toggleKidActive = async (kid: Nino) => {
     try {
-      const { error } = await supabase.from('ninos').update({ activo: !kid.activo }).eq('id', kid.id);
+      const newState = !kid.activo;
+      const { error } = await supabase.from('ninos').update({ activo: newState }).eq('id', kid.id);
       if (error) throw error;
-      showToast(`Niño ${kid.activo ? 'dado de baja' : 'reactivado'} correctamente`);
+      showToast(`Niño ${newState ? 'reactivado' : 'dado de baja'} correctamente`);
+      
+      if (!newState && kid.familia_id) {
+        const otherKids = kids.filter(k => k.familia_id === kid.familia_id && k.id !== kid.id && k.activo);
+        if (otherKids.length === 0) {
+           if (window.confirm('La familia ya no tiene niños activos. ¿Desea desactivar también el acceso de la familia?')) {
+             await supabase.from('profiles').update({ activo: false }).eq('id', kid.familia_id);
+             showToast('Familia dada de baja');
+             fetchUsers();
+           }
+        }
+      }
       fetchAllKids();
+    } catch (err: any) {
+      showToast('Error al cambiar estado: ' + err.message, 'err');
+    }
+  };
+
+  const toggleUserActive = async (user: Usuario) => {
+    try {
+      const newState = user.activo === false ? true : false;
+      const { error } = await supabase.from('profiles').update({ activo: newState }).eq('id', user.id);
+      if (error) throw error;
+      showToast(`Usuario ${newState ? 'reactivado' : 'dado de baja'} correctamente`);
+      fetchUsers();
     } catch (err: any) {
       showToast('Error al cambiar estado: ' + err.message, 'err');
     }
@@ -297,7 +328,7 @@ export function AdminPage() {
                   onClick={() => {
                     if (activeTab === 'niños') {
                       setEditingKid(null);
-                      setKidFormData({ nombre: '', apellido: '', sala: SALAS[0], fecha_nacimiento: '', alergias: '' });
+                      setKidFormData({ nombre: '', apellido: '', sala: SALAS[0], fecha_nacimiento: '', alergias: '', sexo: 'M' });
                       setKidAvatarFile(null);
                       setShowKidModal(true);
                     } else {
@@ -340,7 +371,7 @@ export function AdminPage() {
                           </thead>
                           <tbody className="divide-y divide-gray-100">
                             {(activeTab === 'docentes' ? docentes : familias).map(user => (
-                              <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                              <tr key={user.id} className={`hover:bg-gray-50/50 transition-colors ${user.activo === false ? 'opacity-50' : ''}`}>
                                 <td className="p-4">
                                   <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border border-gray-100 ${
@@ -376,21 +407,31 @@ export function AdminPage() {
                                   </p>
                                 </td>
                                 <td className="p-4 text-right">
-                                  <button 
-                                    onClick={() => {
-                                      if (user.rol === 'docente') {
-                                        setEditingUser(user);
-                                        setUserRole('docente');
-                                        setFormData({ ...formData, salas: docenteSalas[user.id] || [] });
-                                        setShowModal(true);
-                                      } else {
-                                        showToast('La gestión de familias estará disponible pronto');
-                                      }
-                                    }}
-                                    className="text-gray-400 hover:text-naranja transition-colors p-2 bg-white border border-gray-200 rounded-lg shadow-sm font-bold text-xs flex items-center gap-1 ml-auto"
-                                  >
-                                    <span>⚙️</span> <span className="hidden sm:inline">Gestionar</span>
-                                  </button>
+                                  <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => {
+                                        if (user.rol === 'docente') {
+                                          setEditingUser(user);
+                                          setUserRole('docente');
+                                          setFormData({ ...formData, nombre: user.nombre, email: user.email, password: '', salas: docenteSalas[user.id] || [] });
+                                          setShowModal(true);
+                                        } else {
+                                          showToast('La gestión de familias estará disponible pronto');
+                                        }
+                                      }}
+                                      className="text-gray-500 hover:text-gray-700 transition-colors p-2 bg-white border border-gray-200 rounded-lg shadow-sm font-bold text-xs"
+                                      title="Editar"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button 
+                                      onClick={() => toggleUserActive(user)}
+                                      className={`transition-colors p-2 border rounded-lg shadow-sm font-bold text-xs ${user.activo !== false ? 'text-red-500 hover:text-red-700 bg-red-50 border-red-100' : 'text-green-500 hover:text-green-700 bg-green-50 border-green-100'}`}
+                                      title={user.activo !== false ? "Dar de Baja" : "Reactivar"}
+                                    >
+                                      {user.activo !== false ? '⛔' : '✅'}
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -470,7 +511,8 @@ export function AdminPage() {
                                           setEditingKid(kid);
                                           setKidFormData({
                                             nombre: kid.nombre, apellido: kid.apellido, sala: kid.sala,
-                                            fecha_nacimiento: kid.fecha_nacimiento || '', alergias: kid.alergias || ''
+                                            fecha_nacimiento: kid.fecha_nacimiento || '', alergias: kid.alergias || '',
+                                            sexo: kid.sexo || 'M'
                                           });
                                           setKidAvatarFile(null);
                                           setShowKidModal(true);
@@ -574,36 +616,33 @@ export function AdminPage() {
             </div>
             
             <form onSubmit={handleSaveUser} className="p-6 overflow-y-auto flex-1 flex flex-col gap-5">
-              {!editingUser && (
-                <>
-                  <Input 
-                    label={userRole === 'familia' ? "Apellido de la familia" : "Nombre Completo"}
-                    required 
-                    value={formData.nombre}
-                    onChange={e => setFormData({...formData, nombre: e.target.value})}
-                    placeholder={userRole === 'familia' ? "Ej: Muñoz" : "Ej: María Gómez"}
-                  />
-                  
-                  <Input 
-                    label="Correo Electrónico" 
-                    type="email" 
-                    required 
-                    value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
-                    placeholder="maria@jardin.com" 
-                  />
-                  
-                  <Input 
-                    label="Contraseña Temporal" 
-                    type="text" 
-                    required 
-                    value={formData.password}
-                    onChange={e => setFormData({...formData, password: e.target.value})}
-                    placeholder="min. 6 caracteres" 
-                  />
-                </>
-              )}
+              <Input 
+                label={userRole === 'familia' ? "Apellido de la familia" : "Nombre Completo"}
+                required 
+                value={formData.nombre}
+                onChange={e => setFormData({...formData, nombre: e.target.value})}
+                placeholder={userRole === 'familia' ? "Ej: Muñoz" : "Ej: María Gómez"}
+              />
               
+              <Input 
+                label="Correo Electrónico" 
+                type="email" 
+                required 
+                disabled={!!editingUser}
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
+                placeholder="maria@jardin.com" 
+              />
+              
+              <Input 
+                label={editingUser ? "Nueva Contraseña (Opcional)" : "Contraseña Temporal"}
+                type="text" 
+                required={!editingUser}
+                value={formData.password}
+                onChange={e => setFormData({...formData, password: e.target.value})}
+                placeholder="min. 6 caracteres" 
+              />
+
               {editingUser && (
                 <div className="mb-2">
                    <p className="text-sm text-gray-500">Editando a:</p>
@@ -716,13 +755,23 @@ export function AdminPage() {
                 />
               </div>
 
-              <Select 
-                label="Sala Asignada" 
-                value={kidFormData.sala}
-                onChange={e => setKidFormData({...kidFormData, sala: e.target.value as any})}
-              >
-                {SALAS.map(s => <option key={s} value={s}>{s}</option>)}
-              </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <Select 
+                  label="Sala Asignada" 
+                  value={kidFormData.sala}
+                  onChange={e => setKidFormData({...kidFormData, sala: e.target.value as any})}
+                >
+                  {SALAS.map(s => <option key={s} value={s}>{s}</option>)}
+                </Select>
+                <Select 
+                  label="Sexo" 
+                  value={kidFormData.sexo}
+                  onChange={e => setKidFormData({...kidFormData, sexo: e.target.value as any})}
+                >
+                  <option value="M">Niño</option>
+                  <option value="F">Niña</option>
+                </Select>
+              </div>
 
               <Input 
                 label="Fecha de Nacimiento (Opcional)" 

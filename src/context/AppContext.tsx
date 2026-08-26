@@ -96,8 +96,10 @@ function reducer(state: AppState, action: Action): AppState {
       }
       return { ...state, records: [...state.records, action.payload] };
     }
-    case 'ADD_MESSAGE':
+    case 'ADD_MESSAGE': {
+      if (state.messages.some(m => m.id === action.payload.id)) return state;
       return { ...state, messages: [...state.messages, action.payload] };
+    }
     case 'MARK_MESSAGES_READ':
       return {
         ...state,
@@ -117,8 +119,10 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, docenteSalas: action.payload };
     case 'SET_DOCENTES':
       return { ...state, docentes: action.payload };
-    case 'ADD_NOTIFICACION':
+    case 'ADD_NOTIFICACION': {
+      if (state.notificaciones.some(n => n.id === action.payload.id)) return state;
       return { ...state, notificaciones: [action.payload, ...state.notificaciones] };
+    }
     case 'MARK_NOTIFICACIONES_READ':
       return {
         ...state,
@@ -215,6 +219,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!state.user?.jardin_id) return;
+
+    const channel = supabase.channel('realtime_jardin')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'mensajes', filter: `jardin_id=eq.${state.user.jardin_id}` },
+        (payload) => {
+          const newMsg = payload.new as Mensaje;
+          dispatch({ type: 'ADD_MESSAGE', payload: newMsg });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notificaciones', filter: `jardin_id=eq.${state.user.jardin_id}` },
+        (payload) => {
+          const newNotif = payload.new as Notificacion;
+          if (newNotif.usuario_id === state.user?.id) {
+             dispatch({ type: 'ADD_NOTIFICACION', payload: newNotif });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [state.user]);
 
   const loadUserProfile = async (userId: string, email: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -319,6 +352,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addMessage = useCallback(async (msg: Omit<Mensaje, 'id' | 'fecha' | 'hora' | 'jardin_id'>) => {
     const payload = { ...msg, fecha: TODAY, hora: horaActual(), leido: false, jardin_id: state.user?.jardin_id };
     const { data, error } = await supabase.from('mensajes').insert([payload]).select().single();
+    if (error) {
+      console.error('Error in addMessage:', error);
+    }
     if (!error && data) {
       dispatch({ type: 'ADD_MESSAGE', payload: data });
       // Notificacion
@@ -331,11 +367,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           tipo: 'mensaje',
           referencia_id: data.id
         };
-        const { data: notifData } = await supabase.from('notificaciones').insert([notif]).select().single();
+        const { data: notifData, error: notifErr } = await supabase.from('notificaciones').insert([notif]).select().single();
+        if (notifErr) console.error('Error in notif:', notifErr);
         if (notifData) dispatch({ type: 'ADD_NOTIFICACION', payload: notifData });
       }
     }
-  }, []);
+  }, [state.user]);
 
   const markMessagesRead = useCallback(async (ids: string[]) => {
     await supabase.from('mensajes').update({ leido: true }).in('id', ids);

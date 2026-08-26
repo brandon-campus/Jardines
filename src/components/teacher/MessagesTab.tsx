@@ -4,49 +4,74 @@ import { Card } from '../ui/Card';
 import { SalaBadge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
 import { fmtFecha } from '../../lib/utils';
-import { Send } from 'lucide-react';
+import { Send, ChevronDown, ChevronUp } from 'lucide-react';
+import type { Mensaje } from '../../types';
 
 export function MessagesTab() {
   const { state, markMessagesRead, addMessage, showToast } = useApp();
   const [replyText, setReplyText] = useState<Record<string, string>>({});
-  const [activeReply, setActiveReply] = useState<string | null>(null);
+  const [expandedConvo, setExpandedConvo] = useState<string | null>(null);
 
   // Find salas assigned to this teacher using the DB relations
   const misSalas = state.user 
     ? state.docenteSalas.filter(ds => ds.docente_id === state.user!.id).map(ds => ds.sala)
     : [];
 
-  const msgs = state.messages
-    .filter(m => (misSalas.includes(m.sala) || m.destinatario_id === state.user?.id) && m.remitente_id !== state.user?.id)
-    .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora));
+  const allMsgs = state.messages
+    .filter(m => misSalas.includes(m.sala) || m.destinatario_id === state.user?.id || m.remitente_id === state.user?.id)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora)); // Sort ascending for chat
+
+  // Group by nino_id
+  const convos = allMsgs.reduce((acc, m) => {
+    if (!acc[m.nino_id]) acc[m.nino_id] = [];
+    acc[m.nino_id].push(m);
+    return acc;
+  }, {} as Record<string, Mensaje[]>);
+
+  const activeConvos = Object.entries(convos).sort((a, b) => {
+    const lastA = a[1][a[1].length - 1];
+    const lastB = b[1][b[1].length - 1];
+    return lastB.fecha.localeCompare(lastA.fecha) || lastB.hora.localeCompare(lastA.hora);
+  });
 
   const kidMap = Object.fromEntries(state.kids.map(k => [k.id, k]));
 
   // Mark as read when tab opens (only those received)
   useEffect(() => {
-    const unread = msgs.filter(m => !m.leido && m.remitente_id !== state.user?.id).map(m => m.id);
+    const unread = allMsgs.filter(m => !m.leido && m.remitente_id !== state.user?.id).map(m => m.id);
     if (unread.length > 0) markMessagesRead(unread);
-  }, [msgs]);
+  }, [allMsgs, state.user?.id, markMessagesRead]);
 
-  const handleReply = async (msgToReply: any) => {
-    const txt = replyText[msgToReply.id];
+  const handleReply = async (ninoId: string, convMsgs: Mensaje[]) => {
+    const txt = replyText[ninoId];
     if (!txt?.trim()) return;
     if (!state.user) return;
 
+    // Find the last received message from a parent to get their ID
+    const lastParentMsg = [...convMsgs].reverse().find(m => m.remitente_id !== state.user?.id);
+    
+    // Si no hay mensaje previo del padre, quizás no deberíamos poder responder o usamos fallback
+    const destinatarioId = lastParentMsg?.remitente_id;
+    const sala = lastParentMsg?.sala || kidMap[ninoId]?.sala || 'Maternal';
+    const turno = lastParentMsg?.turno || 'Mañana';
+
     await addMessage({
-      nino_id: msgToReply.nino_id,
+      nino_id: ninoId,
       remitente_id: state.user.id,
       remitente_nombre: state.user.nombre,
-      destinatario_id: msgToReply.remitente_id, // Respondemos directo al padre
-      sala: msgToReply.sala,
-      turno: msgToReply.turno,
+      destinatario_id: destinatarioId,
+      sala: sala,
+      turno: turno,
       contenido: txt.trim(),
       leido: false,
     });
 
     showToast('✅ Respuesta enviada');
-    setReplyText(prev => ({ ...prev, [msgToReply.id]: '' }));
-    setActiveReply(null);
+    setReplyText(prev => ({ ...prev, [ninoId]: '' }));
+  };
+
+  const toggleConvo = (ninoId: string) => {
+    setExpandedConvo(prev => prev === ninoId ? null : ninoId);
   };
 
   return (
@@ -58,70 +83,84 @@ export function MessagesTab() {
         </p>
       </div>
 
-      {msgs.length === 0 ? (
+      {activeConvos.length === 0 ? (
         <EmptyState icon="💬" title="Sin mensajes aún" subtitle="Cuando las familias te escriban, aparecerán aquí." />
       ) : (
         <div className="flex flex-col gap-3">
-          {msgs.map(m => {
-            const kid = kidMap[m.nino_id];
+          {activeConvos.map(([ninoId, msgs]) => {
+            const kid = kidMap[ninoId];
+            const isExpanded = expandedConvo === ninoId;
+            const hasUnread = msgs.some(m => !m.leido && m.remitente_id !== state.user?.id);
+            const lastMsg = msgs[msgs.length - 1];
+
             return (
-              <Card key={m.id} accent="#6366F1">
-                <div className="flex justify-between items-start mb-3">
+              <Card key={ninoId} accent="#6366F1" className="p-0 overflow-hidden">
+                {/* Cabecera de la conversación */}
+                <div 
+                  className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${hasUnread ? 'bg-violeta/5' : 'hover:bg-gray-50'}`}
+                  onClick={() => toggleConvo(ninoId)}
+                >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{kid ? kid.avatar : '👨‍👩‍👧'}</span>
                     <div>
                       <div className="font-black text-[14px] text-gray-800">
-                        {m.remitente_nombre}
-                        {kid && (
-                          <span className="ml-2 text-violeta text-[13px] font-semibold">
-                            (padres de {kid.nombre} {kid.apellido})
-                          </span>
-                        )}
+                        {kid ? `Familia de ${kid.nombre} ${kid.apellido}` : 'Familia'}
+                        {hasUnread && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-red-500"></span>}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <SalaBadge sala={m.sala} />
-                        <span className="text-[12px] text-gray-400">· Turno {m.turno}</span>
+                        <SalaBadge sala={kid?.sala || lastMsg.sala} />
+                        <span className="text-[11px] text-gray-400 truncate max-w-[120px]">
+                          {lastMsg.remitente_id === state.user?.id ? 'Tú: ' : ''}{lastMsg.contenido}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right text-[11px] text-gray-400 flex-shrink-0">
-                    <div>{m.hora}hs</div>
-                    <div>{fmtFecha(m.fecha)}</div>
+                  <div className="text-gray-400">
+                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                   </div>
                 </div>
 
-                <div className="bg-violeta-100 rounded-xl px-3 py-2.5 text-[14px] text-gray-700 leading-relaxed border-l-4 border-violeta-400 mb-2">
-                  {m.contenido}
-                </div>
+                {/* Hilo de mensajes */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 bg-gray-50/50 p-4 flex flex-col gap-3">
+                    {msgs.map(m => {
+                      const isFromMe = m.remitente_id === state.user?.id;
+                      return (
+                        <div key={m.id} className={`flex flex-col ${isFromMe ? 'items-end' : 'items-start'}`}>
+                          <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[14px] shadow-sm ${
+                            isFromMe ? 'bg-violeta text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
+                          }`}>
+                            {!isFromMe && <div className="text-[11px] font-bold text-violeta mb-0.5">{m.remitente_nombre}</div>}
+                            <div className="leading-relaxed">{m.contenido}</div>
+                            <div className={`text-[10px] mt-1 flex items-center gap-1 ${isFromMe ? 'text-violeta-200 justify-end' : 'text-gray-400'}`}>
+                              <span>{m.hora}hs · {fmtFecha(m.fecha)}</span>
+                              {isFromMe && (
+                                <span className={m.leido ? 'text-white' : 'text-violeta-300'}>
+                                  {m.leido ? '✓✓' : '✓'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
 
-                {/* Reply section */}
-                {activeReply === m.id ? (
-                  <div className="mt-3 bg-white p-2 rounded-xl border border-gray-200">
-                    <textarea
-                      autoFocus
-                      rows={2}
-                      placeholder="Escribe tu respuesta..."
-                      value={replyText[m.id] || ''}
-                      onChange={e => setReplyText({ ...replyText, [m.id]: e.target.value })}
-                      className="w-full text-sm font-semibold p-2 border-0 outline-none resize-none bg-transparent"
-                    />
-                    <div className="flex justify-end gap-2 mt-2">
-                      <button onClick={() => setActiveReply(null)} className="px-3 py-1.5 text-xs text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
-                      <button onClick={() => handleReply(m)} className="px-3 py-1.5 text-xs bg-violeta text-white font-bold rounded-lg flex items-center gap-1 hover:brightness-110">
-                        <Send size={12} />
-                        Enviar
+                    {/* Input de respuesta */}
+                    <div className="mt-2 flex gap-2">
+                      <textarea
+                        rows={1}
+                        placeholder="Escribe tu respuesta..."
+                        value={replyText[ninoId] || ''}
+                        onChange={e => setReplyText({ ...replyText, [ninoId]: e.target.value })}
+                        className="flex-1 text-sm p-2.5 border border-gray-200 rounded-xl outline-none resize-none bg-white focus:border-violeta"
+                      />
+                      <button 
+                        onClick={() => handleReply(ninoId, msgs)} 
+                        className="w-10 flex-shrink-0 flex items-center justify-center bg-violeta text-white font-bold rounded-xl hover:brightness-110"
+                      >
+                        <Send size={16} />
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center mt-2">
-                    <button 
-                      onClick={() => setActiveReply(m.id)}
-                      className="text-[12px] font-bold text-violeta hover:underline"
-                    >
-                      ↩ Responder
-                    </button>
-                    <div className="text-[12px] text-green-600 font-bold">✅ Leído</div>
                   </div>
                 )}
               </Card>

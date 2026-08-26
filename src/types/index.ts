@@ -25,6 +25,7 @@ export interface Usuario {
   email: string;
   password: string;
   avatar_url?: string;
+  activo?: boolean;
 }
 
 export interface Nino {
@@ -38,6 +39,7 @@ export interface Nino {
   alergias: string;
   familia_id: string | null;
   activo: boolean;
+  sexo?: 'M' | 'F';
 }
 
 export interface RegistroDiario {
