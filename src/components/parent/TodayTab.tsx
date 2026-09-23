@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Chip } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
 import { COMIDA_OPTIONS, COMIDAS_DEL_DIA } from '../../types';
-import { fmtFecha, calcDuracion, animoLabel, animoEmoji, comidaLabel, tempColor } from '../../lib/utils';
+import { fmtFecha, calcDuracion, animoLabel, animoEmoji, comidaLabel, tempColor, formatComo } from '../../lib/utils';
 import { TODAY } from '../../data/mock';
 
 export function ParentTodayTab() {
@@ -50,9 +50,9 @@ export function ParentTodayTab() {
       <Card className="mb-3">
         <div className="font-black text-sm text-gray-700 mb-3">🍽️ Alimentación</div>
         {COMIDAS_DEL_DIA.map(({ key, label, icon }) => {
-          const val = record[key];
+          const val = record[key as keyof typeof record];
           if (!val) return null;
-          const cc = ccMap[val] ?? { color: '#374151', bg: '#f3f4f6' };
+          const cc = ccMap[val as string] ?? { color: '#374151', bg: '#f3f4f6' };
           return (
             <div key={key} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
               <div className="flex items-center gap-2">
@@ -63,23 +63,43 @@ export function ParentTodayTab() {
                 className="text-xs font-black px-3 py-1 rounded-full"
                 style={{ color: cc.color, background: cc.bg }}
               >
-                {comidaLabel(val)}
+                {comidaLabel(val as any)}
               </span>
             </div>
           );
         })}
+        {record.mamadera && Array.isArray(record.mamadera) && record.mamadera.length > 0 && (
+          <div className="flex flex-col gap-2 py-2.5 border-b border-gray-50 last:border-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl">🍼</span>
+              <span className="text-sm font-bold text-gray-700">Mamadera</span>
+            </div>
+            <div className="flex flex-col gap-1 pl-7">
+              {record.mamadera.map((t: any, i: number) => (
+                <div key={i} className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500">Hora {t.hora}</span>
+                  <span className="font-bold text-gray-700">{t.ml} ml</span>
+                </div>
+              ))}
+              <div className="flex justify-between items-center text-xs mt-1 pt-1 border-t border-gray-100 font-black text-violet-700">
+                <span>Total</span>
+                <span>{record.mamadera.reduce((acc: number, curr: any) => acc + Number(curr.ml), 0)} ml ({record.mamadera.length} tomas)</span>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Info detallada */}
       <Card className="mb-3">
         <InfoRow
           icon="💩" label="Popó"
-          val={record.popo === 'no' ? 'No hizo' : record.popo === 'poco' ? 'Poca cantidad' : 'Mucha cantidad'}
+          val={record.popo === 'no' ? 'No hizo' : `${record.popo === 'poco' ? 'Poca cantidad' : 'Mucha cantidad'}${record.popo_como ? ` (${formatComo(record.popo_como).toLowerCase()})` : ''}`}
         />
         <InfoRow
-          icon="💧" label="Control de pis"
-          val={record.control_pis ? '¡Lo hizo solo/a! 🥳' : 'Con ayuda de la maestra'}
-          color={record.control_pis ? '#16a34a' : '#dc2626'}
+          icon="💧" label="Pis"
+          val={record.control_pis ? `Hizo pis${record.pis_como ? ` (${formatComo(record.pis_como).toLowerCase()})` : ''}` : 'No hizo'}
+          color={record.control_pis ? '#16a34a' : '#6b7280'}
         />
         {record.siesta_inicio && record.siesta_fin && (
           <InfoRow

@@ -39,7 +39,7 @@ export function ParentPage() {
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto relative">
           <ParentHeader
             kidName={kid ? `${kid.nombre} ${kid.apellido}` : ''}
-            kidAvatar={kid?.avatar}
+            kidAvatar={kid?.avatar || (kid?.sala === 'Maternal' ? '👶' : (kid?.sexo === 'F' ? '👧' : '👦'))}
             sala={kid?.sala}
             alergias={kid?.alergias}
             hasTodayReport={!!todayRecord}

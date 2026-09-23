@@ -38,6 +38,14 @@ export const animoLabel = (v: EstadoAnimo | null): string =>
 export const comidaLabel = (v: ComidaOpcion | null): string =>
   COMIDA_OPTIONS.find(c => c.v === v)?.l ?? v ?? '—';
 
+// Formato de "cómo lo hizo" (pis/popó)
+export const formatComo = (como?: string | null): string => {
+  if (como === 'solo') return 'Solo/a';
+  if (como === 'asistido') return 'Con ayuda';
+  if (como === 'panal') return 'En pañal';
+  return '';
+};
+
 // Color por sala (Tailwind classes no disponibles dinámicamente, usamos inline styles)
 export const salaColors = (sala: Sala) => {
   const map: Record<Sala, { bg: string; text: string; dot: string }> = {

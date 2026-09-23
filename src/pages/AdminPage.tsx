@@ -15,6 +15,7 @@ export function AdminPage() {
   const [docenteSalas, setDocenteSalas] = useState<Record<string, string[]>>({});
   const [kids, setKids] = useState<Nino[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDeactivated, setShowDeactivated] = useState(false);
 
   // User Creation & Management Modal states
   const [showModal, setShowModal] = useState(false);
@@ -88,8 +89,8 @@ export function AdminPage() {
     setLoading(false);
   };
 
-  const docentes = users.filter(u => u.rol === 'docente');
-  const familias = users.filter(u => u.rol === 'familia');
+  const docentes = users.filter(u => u.rol === 'docente' && (showDeactivated || u.activo !== false));
+  const familias = users.filter(u => u.rol === 'familia' && (showDeactivated || u.activo !== false));
 
   const navItems = [
     { id: 'docentes', label: 'Equipo Docente', icon: '👩‍🏫' },
@@ -364,6 +365,20 @@ export function AdminPage() {
                 </button>
               )}
             </div>
+
+            {(activeTab === 'docentes' || activeTab === 'familias' || activeTab === 'niños') && (
+              <div className="flex justify-end mb-4">
+                <label className="flex items-center gap-2 text-sm text-gray-500 font-bold cursor-pointer hover:text-gray-700">
+                  <input 
+                    type="checkbox" 
+                    checked={showDeactivated} 
+                    onChange={e => setShowDeactivated(e.target.checked)} 
+                    className="rounded border-gray-300 text-naranja focus:ring-naranja"
+                  />
+                  Mostrar dados de baja
+                </label>
+              </div>
+            )}
             
             {loading ? (
               <div className="flex justify-center py-20">
@@ -487,17 +502,17 @@ export function AdminPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
-                            {kids.map(kid => {
+                            {kids.filter(k => showDeactivated || k.activo !== false).map(kid => {
                               const kidFamily = users.find(u => u.id === kid.familia_id);
                               return (
                                 <tr key={kid.id} className={`hover:bg-gray-50/50 transition-colors ${!kid.activo ? 'opacity-50' : ''}`}>
                                   <td className="p-4">
                                     <div className="flex items-center gap-3">
-                                      {kid.avatar ? (
+                                      {kid.avatar && kid.avatar.startsWith('http') ? (
                                         <img src={kid.avatar} alt={kid.nombre} className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100" />
                                       ) : (
                                         <div className="w-10 h-10 bg-naranja-50 rounded-full flex items-center justify-center text-lg shadow-sm border border-gray-100">
-                                          👶
+                                          {kid.avatar || (kid.sala === 'Maternal' ? '👶' : (kid.sexo === 'F' ? '👧' : '👦'))}
                                         </div>
                                       )}
                                       <div>

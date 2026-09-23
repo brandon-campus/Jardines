@@ -8,8 +8,8 @@ import { Button } from '../components/ui/Button';
 import { SectionHeader } from '../components/ui/Card';
 import { Input, Textarea } from '../components/ui/Input';
 import { SalaBadge } from '../components/ui/Badge';
-import { COMIDA_OPTIONS, ANIMO_OPTIONS, POPO_OPTIONS, COMIDAS_DEL_DIA } from '../types';
-import type { ComidaOpcion, EstadoAnimo, PopoOpcion } from '../types';
+import { COMIDA_OPTIONS, ANIMO_OPTIONS, POPO_OPTIONS, COMIDAS_DEL_DIA, COMO_OPTIONS } from '../types';
+import type { ComidaOpcion, EstadoAnimo, PopoOpcion, ComoOpcion, TomaMamadera } from '../types';
 import { horaActual } from '../lib/utils';
 import { uploadFile } from '../lib/storage';
 import { TODAY } from '../data/mock';
@@ -26,8 +26,26 @@ export function RecordFormPage() {
   const [desayuno, setDesayuno] = useState<ComidaOpcion | null>(existing?.desayuno ?? null);
   const [almuerzo, setAlmuerzo] = useState<ComidaOpcion | null>(existing?.almuerzo ?? null);
   const [merienda, setMerienda] = useState<ComidaOpcion | null>(existing?.merienda ?? null);
+  
+  const [tomasMamadera, setTomasMamadera] = useState<TomaMamadera[]>(Array.isArray(existing?.mamadera) ? existing.mamadera : []);
+  const [nuevaHoraMamadera, setNuevaHoraMamadera] = useState('');
+  const [nuevoMlMamadera, setNuevoMlMamadera] = useState('');
+
+  const handleAddMamadera = () => {
+    if (!nuevaHoraMamadera || !nuevoMlMamadera) return;
+    setTomasMamadera([...tomasMamadera, { hora: nuevaHoraMamadera, ml: Number(nuevoMlMamadera) }]);
+    setNuevaHoraMamadera('');
+    setNuevoMlMamadera('');
+  };
+
+  const handleRemoveMamadera = (idx: number) => {
+    setTomasMamadera(tomasMamadera.filter((_, i) => i !== idx));
+  };
+
   const [popo, setPopo] = useState<PopoOpcion>(existing?.popo ?? 'no');
-  const [pisSolo, setPisSolo] = useState<boolean | null>(existing?.control_pis ?? null);
+  const [popoComo, setPopoComo] = useState<ComoOpcion | null>(existing?.popo_como ?? null);
+  const [pis, setPis] = useState<boolean | null>(existing?.control_pis ?? null);
+  const [pisComo, setPisComo] = useState<ComoOpcion | null>(existing?.pis_como ?? null);
   const [siestaDesde, setSiestaDesde] = useState(existing?.siesta_inicio ?? '');
   const [siestaHasta, setSiestaHasta] = useState(existing?.siesta_fin ?? '');
   const [animo, setAnimo] = useState<EstadoAnimo | null>(existing?.estado_animo ?? null);
@@ -80,8 +98,11 @@ export function RecordFormPage() {
       fecha: TODAY,
       hora: horaActual(),
       desayuno, almuerzo, merienda,
+      mamadera: tomasMamadera,
       popo,
-      control_pis: pisSolo ?? false,
+      popo_como: popoComo,
+      control_pis: pis ?? false,
+      pis_como: pisComo,
       siesta_inicio: siestaDesde,
       siesta_fin: siestaHasta,
       estado_animo: animo,
@@ -157,8 +178,8 @@ export function RecordFormPage() {
                 {COMIDAS_DEL_DIA.map(({ key, label, icon }) => {
                   const valMap = { desayuno, almuerzo, merienda };
                   const setMap = { desayuno: setDesayuno, almuerzo: setAlmuerzo, merienda: setMerienda };
-                  const val = valMap[key];
-                  const setter = setMap[key];
+                  const val = valMap[key as keyof typeof valMap];
+                  const setter = setMap[key as keyof typeof setMap];
                   return (
                     <div key={key}>
                       <div className="text-[13px] font-bold text-gray-600 mb-2">
@@ -187,6 +208,62 @@ export function RecordFormPage() {
               </div>
             </div>
 
+            {/* MAMADERA */}
+            <div>
+              <SectionHeader icon="🍼" title="Mamadera de hoy" />
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                <div className="flex gap-3 mb-4 items-end">
+                  <div className="flex-1">
+                    <label className="text-[11px] text-gray-400 font-bold ml-1 mb-1 block uppercase tracking-wide">Hora</label>
+                    <Input
+                      type="time"
+                      value={nuevaHoraMamadera}
+                      onChange={e => setNuevaHoraMamadera(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[11px] text-gray-400 font-bold ml-1 mb-1 block uppercase tracking-wide">ml</label>
+                    <Input
+                      type="number"
+                      placeholder="ml"
+                      value={nuevoMlMamadera}
+                      onChange={e => setNuevoMlMamadera(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    onClick={handleAddMamadera}
+                    disabled={!nuevaHoraMamadera || !nuevoMlMamadera}
+                    className="w-12 h-[46px] bg-[#7c3aed] text-white rounded-xl flex items-center justify-center font-bold text-2xl hover:bg-violet-700 disabled:opacity-50 transition-colors flex-shrink-0"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {tomasMamadera.length > 0 && (
+                  <div className="flex flex-col gap-1 mb-5">
+                    {tomasMamadera.map((t, i) => (
+                      <div key={i} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                        <span className="text-gray-500 text-[15px]">Hora {t.hora}</span>
+                        <div className="flex items-center gap-6">
+                          <span className="font-black text-gray-800 text-[16px]">{t.ml} ml</span>
+                          <button onClick={() => handleRemoveMamadera(i)} className="text-gray-300 hover:text-gray-400 transition-colors pb-0.5">
+                            <X size={20} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="bg-[#f5f3ff] text-violet-800 rounded-2xl px-4 py-3.5 flex justify-between items-center font-medium text-[15px]">
+                  <span className="text-gray-700">Total</span>
+                  <span className="text-[#7c3aed] font-black text-lg">
+                    {tomasMamadera.reduce((acc, curr) => acc + Number(curr.ml), 0)} ml <span className="font-normal text-gray-600 text-[15px]">· {tomasMamadera.length} tomas</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div>
               {/* POPÓ */}
               <SectionHeader icon="💩" title="Popó" />
@@ -195,7 +272,10 @@ export function RecordFormPage() {
                 {POPO_OPTIONS.map(opt => (
                   <button
                     key={opt.v}
-                    onClick={() => setPopo(opt.v)}
+                    onClick={() => {
+                      setPopo(opt.v);
+                      if (opt.v === 'no') setPopoComo(null);
+                    }}
                     className="flex-1 py-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all duration-150"
                     style={
                       popo === opt.v
@@ -208,22 +288,47 @@ export function RecordFormPage() {
                   </button>
                 ))}
               </div>
+              {popo !== 'no' && (
+                <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <p className="text-[13px] text-gray-500 mb-2 font-semibold">¿Cómo lo hizo?</p>
+                  <div className="flex gap-2">
+                    {COMO_OPTIONS.map(opt => (
+                      <button
+                        key={opt.v}
+                        onClick={() => setPopoComo(opt.v)}
+                        className="flex-1 py-2 rounded-lg border-2 font-bold text-xs cursor-pointer transition-all duration-150"
+                        style={
+                          popoComo === opt.v
+                            ? { borderColor: '#f59e0b', background: '#fef3c7', color: '#92400e' }
+                            : { borderColor: '#e5e7eb', background: '#fff', color: '#9ca3af' }
+                        }
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
               {/* PIS */}
-              <p className="text-[15px] font-bold text-gray-700 mb-2 mt-2">💧 ¿Hizo pis solo/a?</p>
+              <SectionHeader icon="💧" title="Pis" />
+              <p className="text-[13px] text-gray-400 mb-2 font-semibold">¿Hizo pis?</p>
               <div className="flex gap-3">
                 {[
-                  { v: true, label: '✅ Sí, solo/a' },
-                  { v: false, label: '❌ Con ayuda' },
+                  { v: true, label: '✅ Sí' },
+                  { v: false, label: '🚫 No' },
                 ].map(({ v, label }) => (
                   <button
                     key={String(v)}
-                    onClick={() => setPisSolo(pisSolo === v ? null : v)}
+                    onClick={() => {
+                      setPis(pis === v ? null : v);
+                      if (v === false) setPisComo(null);
+                    }}
                     className="flex-1 py-3 rounded-xl border-2 font-bold text-sm cursor-pointer transition-all duration-150"
                     style={
-                      pisSolo === v
+                      pis === v
                         ? { borderColor: '#FF6B35', background: '#fff5eb', color: '#FF6B35' }
                         : { borderColor: '#e5e7eb', background: '#fff', color: '#9ca3af' }
                     }
@@ -232,6 +337,27 @@ export function RecordFormPage() {
                   </button>
                 ))}
               </div>
+              {pis && (
+                <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <p className="text-[13px] text-gray-500 mb-2 font-semibold">¿Cómo lo hizo?</p>
+                  <div className="flex gap-2">
+                    {COMO_OPTIONS.map(opt => (
+                      <button
+                        key={opt.v}
+                        onClick={() => setPisComo(opt.v)}
+                        className="flex-1 py-2 rounded-lg border-2 font-bold text-xs cursor-pointer transition-all duration-150"
+                        style={
+                          pisComo === opt.v
+                            ? { borderColor: '#FF6B35', background: '#fff5eb', color: '#FF6B35' }
+                            : { borderColor: '#e5e7eb', background: '#fff', color: '#9ca3af' }
+                        }
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

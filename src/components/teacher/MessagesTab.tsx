@@ -101,7 +101,7 @@ export function MessagesTab() {
                   onClick={() => toggleConvo(ninoId)}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{kid ? kid.avatar : '👨‍👩‍👧'}</span>
+                    <span className="text-2xl">{kid ? (kid.avatar || (kid.sala === 'Maternal' ? '👶' : (kid.sexo === 'F' ? '👧' : '👦'))) : '👨‍👩‍👧'}</span>
                     <div>
                       <div className="font-black text-[14px] text-gray-800">
                         {kid ? `Familia de ${kid.nombre} ${kid.apellido}` : 'Familia'}

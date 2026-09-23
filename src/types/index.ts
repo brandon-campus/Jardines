@@ -6,7 +6,13 @@ export type Sala = 'Maternal' | 'Sala de 1' | 'Sala de 2' | 'Sala de 3';
 export type ComidaOpcion = 'todo' | 'poco' | 'nada';
 export type EstadoAnimo = 'muy_bien' | 'feliz' | 'tranquilo' | 'lloron' | 'irritable';
 export type PopoOpcion = 'no' | 'poco' | 'mucho';
+export type ComoOpcion = 'solo' | 'asistido' | 'panal';
 export type Rol = 'docente' | 'familia' | 'superadmin' | 'admin_jardin';
+
+export interface TomaMamadera {
+  hora: string;
+  ml: number;
+}
 
 export interface Jardin {
   id: string;
@@ -52,8 +58,11 @@ export interface RegistroDiario {
   desayuno: ComidaOpcion | null;
   almuerzo: ComidaOpcion | null;
   merienda: ComidaOpcion | null;
+  mamadera: TomaMamadera[];
   popo: PopoOpcion;
+  popo_como?: ComoOpcion | null;
   control_pis: boolean;
+  pis_como?: ComoOpcion | null;
   siesta_inicio: string;
   siesta_fin: string;
   estado_animo: EstadoAnimo | null;
@@ -131,6 +140,12 @@ export const POPO_OPTIONS: { v: PopoOpcion; l: string; e: string }[] = [
   { v: 'no',    l: 'No',    e: '🚫' },
   { v: 'poco',  l: 'Poco',  e: '💩' },
   { v: 'mucho', l: 'Mucho', e: '💩💩' },
+];
+
+export const COMO_OPTIONS: { v: ComoOpcion; l: string }[] = [
+  { v: 'solo', l: 'Solo' },
+  { v: 'asistido', l: 'Asistido' },
+  { v: 'panal', l: 'Pañal' },
 ];
 
 export const COMIDAS_DEL_DIA = [

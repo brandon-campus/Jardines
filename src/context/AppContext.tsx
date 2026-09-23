@@ -183,7 +183,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Auto-fix adult avatars to kid-friendly ones
       kidsRes.data.forEach(kid => {
         if (kid.avatar && typeof kid.avatar === 'string' && kid.avatar.includes('dicebear')) {
-          const newAvatar = kid.sala === 'Maternal' ? '👶' : '🧒';
+          const newAvatar = kid.sala === 'Maternal' ? '👶' : (kid.sexo === 'F' ? '👧' : '👦');
           supabase.from('ninos').update({ avatar: newAvatar }).eq('id', kid.id).then();
         }
       });
@@ -357,8 +357,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     if (!error && data) {
       dispatch({ type: 'ADD_MESSAGE', payload: data });
-      // Notificacion
-      if (data.destinatario_id) {
+      
+      const isFamilySender = state.user?.rol === 'familia';
+      
+      if (isFamilySender) {
+        // Notificar a TODAS las docentes asignadas a la sala de este mensaje
+        const docentesSala = state.docenteSalas
+          .filter(ds => ds.sala === data.sala)
+          .map(ds => ds.docente_id);
+          
+        if (docentesSala.length > 0) {
+          const notifs = docentesSala.map(docenteId => ({
+            jardin_id: state.user?.jardin_id,
+            usuario_id: docenteId,
+            titulo: 'Nuevo mensaje de familia',
+            mensaje: `Tienes un nuevo mensaje de ${data.remitente_nombre}.`,
+            tipo: 'mensaje',
+            referencia_id: data.id
+          }));
+          
+          const { data: notifData } = await supabase.from('notificaciones').insert(notifs).select();
+          if (notifData) {
+            notifData.forEach(n => dispatch({ type: 'ADD_NOTIFICACION', payload: n }));
+          }
+        }
+      } else if (data.destinatario_id) {
+        // Si no es familia (es docente) enviando a una familia específica
         const notif = {
           jardin_id: state.user?.jardin_id,
           usuario_id: data.destinatario_id,
@@ -372,7 +396,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (notifData) dispatch({ type: 'ADD_NOTIFICACION', payload: notifData });
       }
     }
-  }, [state.user]);
+  }, [state.user, state.docenteSalas]);
 
   const markMessagesRead = useCallback(async (ids: string[]) => {
     await supabase.from('mensajes').update({ leido: true }).in('id', ids);
@@ -386,8 +410,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       docente_id: state.user?.id,
     };
     const { data, error } = await supabase.from('videos').insert([payload]).select().single();
-    if (!error && data) dispatch({ type: 'ADD_VIDEO', payload: data });
-  }, [state.user]);
+    if (!error && data) {
+      dispatch({ type: 'ADD_VIDEO', payload: data });
+      
+      // Notificar a todas las familias de esa sala
+      const familiasToNotify = new Set(
+        state.kids
+          .filter(k => k.sala === video.sala && k.familia_id)
+          .map(k => k.familia_id)
+      );
+      
+      if (familiasToNotify.size > 0) {
+        const notifs = Array.from(familiasToNotify).map(fid => ({
+          jardin_id: state.user?.jardin_id,
+          usuario_id: fid,
+          titulo: 'Nuevo video en la sala',
+          mensaje: `Se ha subido un nuevo video a la ${video.sala}.`,
+          tipo: 'video',
+          referencia_id: data.id
+        }));
+        
+        const { data: notifData } = await supabase.from('notificaciones').insert(notifs).select();
+        if (notifData) {
+          notifData.forEach(n => dispatch({ type: 'ADD_NOTIFICACION', payload: n }));
+        }
+      }
+    }
+  }, [state.user, state.kids]);
 
   const deleteVideo = useCallback(async (id: string) => {
     const { error } = await supabase.from('videos').delete().eq('id', id);

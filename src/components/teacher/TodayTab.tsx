@@ -103,7 +103,7 @@ export function TodayTab() {
                         <img src={kid.avatar} alt={kid.nombre} className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-100 flex-shrink-0" />
                       ) : (
                         <span className="text-3xl w-12 h-12 bg-naranja-50 rounded-full flex items-center justify-center border border-gray-100 flex-shrink-0">
-                          {kid.avatar || '👶'}
+                          {kid.avatar || (kid.sala === 'Maternal' ? '👶' : (kid.sexo === 'F' ? '👧' : '👦'))}
                         </span>
                       )}
                       <div className="flex-1 min-w-0">

@@ -60,7 +60,13 @@ export function VideosTab() {
     setTitulo(''); setSala('Todas'); cancelSelection();
   };
 
-  const vids = [...state.videos].reverse();
+  const misSalas = state.user?.rol === 'docente' 
+    ? state.docenteSalas.filter(ds => ds.docente_id === state.user!.id).map(ds => ds.sala)
+    : [];
+
+  const vids = [...state.videos]
+    .filter(v => v.sala === 'Todas' || misSalas.includes(v.sala))
+    .reverse();
 
   return (
     <div className="px-4 pt-3 pb-28 tab-content">
@@ -84,7 +90,7 @@ export function VideosTab() {
             onChange={e => setSala(e.target.value)}
           >
             <option value="Todas">Todas las salas</option>
-            {SALAS.map(s => <option key={s} value={s}>{s}</option>)}
+            {misSalas.length > 0 ? misSalas.map(s => <option key={s} value={s}>{s}</option>) : SALAS.map(s => <option key={s} value={s}>{s}</option>)}
           </Select>
 
           <input
