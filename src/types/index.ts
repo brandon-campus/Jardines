@@ -58,7 +58,7 @@ export interface RegistroDiario {
   desayuno: ComidaOpcion | null;
   almuerzo: ComidaOpcion | null;
   merienda: ComidaOpcion | null;
-  mamadera: TomaMamadera[];
+  mamadera?: TomaMamadera[];
   popo: PopoOpcion;
   popo_como?: ComoOpcion | null;
   control_pis: boolean;
