@@ -3,6 +3,7 @@ import type { Jardin, Usuario, Nino, RegistroDiario, Mensaje, Video, Notificacio
 import { supabase } from '../lib/supabase';
 import { nid, horaActual } from '../lib/utils';
 import { TODAY } from '../data/mock'; // We still use TODAY from mock for consistency in frontend matching
+import { usePushNotifications } from '../lib/usePushNotifications';
 
 // ============================================================
 // STATE
@@ -161,6 +162,7 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { requestPermission, sendNotification } = usePushNotifications();
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const fetchData = useCallback(async () => {
@@ -239,6 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const newNotif = payload.new as Notificacion;
           if (newNotif.usuario_id === state.user?.id) {
              dispatch({ type: 'ADD_NOTIFICACION', payload: newNotif });
+             sendNotification(newNotif.titulo, { body: newNotif.mensaje });
           }
         }
       )
@@ -252,6 +255,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadUserProfile = async (userId: string, email: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (data && !error) {
+      // Bloquear acceso si la familia/docente fue dada de baja
+      if (data.activo === false) {
+        await supabase.auth.signOut();
+        dispatch({ type: 'LOGOUT' });
+        dispatch({ type: 'SHOW_TOAST', payload: { msg: '⛔ Tu cuenta fue desactivada. Contactá al jardín.', type: 'err' } });
+        setTimeout(() => dispatch({ type: 'HIDE_TOAST' }), 5000);
+        return;
+      }
       const user: Usuario = {
         id: data.id,
         jardin_id: data.jardin_id,
@@ -277,6 +288,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error("Login error:", error?.message);
       return null;
     }
+    
+    requestPermission();
 
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
     if (!profile) {

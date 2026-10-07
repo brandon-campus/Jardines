@@ -15,8 +15,13 @@ export function VideosTab() {
   const { state, addVideo, deleteVideo, showToast } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Calcular las salas de la docente antes del estado para usar como valor por defecto
+  const misSalas = state.user?.rol === 'docente'
+    ? state.docenteSalas.filter(ds => ds.docente_id === state.user!.id).map(ds => ds.sala)
+    : [];
+
   const [titulo, setTitulo] = useState('');
-  const [sala, setSala] = useState<string>('Todas');
+  const [sala, setSala] = useState<string>(misSalas[0] || 'Todas');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
@@ -37,6 +42,11 @@ export function VideosTab() {
   const handlePublish = async () => {
     if (!titulo.trim()) { showToast('⚠️ Escribí un título', 'err'); return; }
     if (!selectedFile) { showToast('⚠️ Seleccioná un video', 'err'); return; }
+    // Validar que la docente siempre elija una sala específica
+    if (state.user?.rol === 'docente' && misSalas.length > 0 && sala === 'Todas') {
+      showToast('⚠️ Elegí la sala a la que va dirigido el video', 'err');
+      return;
+    }
 
     setIsUploading(true);
     showToast('Subiendo video...', 'ok');
@@ -57,12 +67,9 @@ export function VideosTab() {
 
     setIsUploading(false);
     showToast('✅ Video publicado');
-    setTitulo(''); setSala('Todas'); cancelSelection();
+    // Resetear a la primera sala de la docente, no a 'Todas'
+    setTitulo(''); setSala(misSalas[0] || 'Todas'); cancelSelection();
   };
-
-  const misSalas = state.user?.rol === 'docente' 
-    ? state.docenteSalas.filter(ds => ds.docente_id === state.user!.id).map(ds => ds.sala)
-    : [];
 
   const vids = [...state.videos]
     .filter(v => v.sala === 'Todas' || misSalas.includes(v.sala))

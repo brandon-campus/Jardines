@@ -13,13 +13,8 @@ interface TeacherHeaderProps {
 export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHeaderProps) {
   const { state, logout } = useApp();
   const navigate = useNavigate();
-  const { jardin, user, records, kids } = state;
+  const { jardin, user } = state;
 
-  const TODAY = new Date().toISOString().split('T')[0];
-  const registered = new Set(records.filter(r => r.fecha === TODAY).map(r => r.nino_id)).size;
-  const total = kids.length;
-  const pending = total - registered;
-  
   const [showNotifs, setShowNotifs] = useState(false);
   const unreadNotifs = state.notificaciones.filter(n => !n.leida);
 
@@ -130,23 +125,6 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
       <p className="text-xs font-medium text-white/90">
         🗓️ {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
       </p>
-
-      {/* Stats */}
-      <div className="flex gap-2 mt-3">
-        {[
-          { label: '👶 Total', value: total },
-          { label: '✅ Registrados', value: registered },
-          { label: '⏳ Pendientes', value: pending },
-        ].map(stat => (
-          <div
-            key={stat.label}
-            className="flex-1 bg-white/18 rounded-xl py-2 px-1 text-center"
-          >
-            <div className="text-2xl font-black text-white">{stat.value}</div>
-            <div className="text-xs font-semibold text-white/95">{stat.label}</div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

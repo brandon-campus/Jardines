@@ -256,6 +256,25 @@ export function AdminPage() {
       const { error } = await supabase.from('profiles').update({ activo: newState }).eq('id', user.id);
       if (error) throw error;
       showToast(`Usuario ${newState ? 'reactivado' : 'dado de baja'} correctamente`);
+
+      // Si es una familia que se da de BAJA, desactivar también a su hijo/a
+      if (!newState && user.rol === 'familia') {
+        const kidDeFamily = kids.find(k => k.familia_id === user.id && k.activo);
+        if (kidDeFamily) {
+          await supabase.from('ninos').update({ activo: false }).eq('id', kidDeFamily.id);
+          showToast(`Niño/a ${kidDeFamily.nombre} removido/a de la sala`);
+          fetchAllKids();
+        }
+      }
+      // Si se reactiva, también reactivar al niño asociado
+      if (newState && user.rol === 'familia') {
+        const { data: profileData } = await supabase.from('profiles').select('child_id').eq('id', user.id).maybeSingle();
+        if (profileData?.child_id) {
+          await supabase.from('ninos').update({ activo: true }).eq('id', profileData.child_id);
+          fetchAllKids();
+        }
+      }
+
       fetchUsers();
     } catch (err: any) {
       showToast('Error al cambiar estado: ' + err.message, 'err');
