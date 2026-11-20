@@ -11,7 +11,7 @@ interface TeacherHeaderProps {
 }
 
 export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHeaderProps) {
-  const { state, logout } = useApp();
+  const { state, logout, markNotificacionesRead } = useApp();
   const navigate = useNavigate();
   const { jardin, user } = state;
 
@@ -91,7 +91,7 @@ export function TeacherHeader({ title, subtitle, showBack, onBack }: TeacherHead
             <h3 className="font-bold text-gray-800 text-sm">Notificaciones</h3>
             {unreadNotifs.length > 0 && (
               <button 
-                onClick={() => state.notificaciones.forEach(n => !n.leida && useApp().markNotificacionesRead([n.id]))}
+                onClick={() => markNotificacionesRead(unreadNotifs.map(n => n.id))}
                 className="text-xs text-naranja font-bold hover:underline"
               >
                 Marcar leídas

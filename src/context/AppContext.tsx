@@ -161,6 +161,14 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+// Sin .select(): RLS solo deja leer las notificaciones propias, y el RETURNING
+// sobre filas de otro usuario haría fallar todo el insert.
+async function crearNotificaciones(notifs: Omit<Notificacion, 'id' | 'leida' | 'created_at'>[]) {
+  if (notifs.length === 0) return;
+  const { error } = await supabase.from('notificaciones').insert(notifs);
+  if (error) console.error('Error creando notificaciones:', error);
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { requestPermission, sendNotification } = usePushNotifications();
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -174,8 +182,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       supabase.from('registros_diarios').select('*'),
       supabase.from('mensajes').select('*'),
       supabase.from('videos').select('*'),
-      supabase.from('notificaciones').select('*'),
-      supabase.from('docente_sala').select('*'),
+      supabase.from('notificaciones').select('*').order('created_at', { ascending: false }),
+supabase.from('docente_sala').select('*'),
       supabase.from('profiles').select('*').in('rol', ['docente', 'admin_jardin'])
     ]);
 
@@ -250,7 +258,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [state.user]);
+  }, [state.user, sendNotification]);
 
   const loadUserProfile = async (userId: string, email: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -344,17 +352,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Create auto-notification for the parents
         const kid = state.kids.find(k => k.id === data.nino_id);
         if (kid && kid.familia_id) {
-          const notif = {
+          await crearNotificaciones([{
             jardin_id: state.user?.jardin_id,
             usuario_id: kid.familia_id,
             titulo: 'Nuevo reporte diario',
             mensaje: `La maestra ha cargado el reporte de hoy para ${kid.nombre}.`,
             tipo: 'registro',
             referencia_id: data.id
-          };
-          const { data: notifData } = await supabase.from('notificaciones').insert([notif]).select().single();
-          if (notifData) dispatch({ type: 'ADD_NOTIFICACION', payload: notifData });
-        }
+          }]);
+}
       }
     }
   }, [state.records, state.user]);
@@ -374,42 +380,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const isFamilySender = state.user?.rol === 'familia';
       
       if (isFamilySender) {
-        // Notificar a TODAS las docentes asignadas a la sala de este mensaje
-        const docentesSala = state.docenteSalas
-          .filter(ds => ds.sala === data.sala)
-          .map(ds => ds.docente_id);
-          
-        if (docentesSala.length > 0) {
-          const notifs = docentesSala.map(docenteId => ({
-            jardin_id: state.user?.jardin_id,
-            usuario_id: docenteId,
-            titulo: 'Nuevo mensaje de familia',
-            mensaje: `Tienes un nuevo mensaje de ${data.remitente_nombre}.`,
-            tipo: 'mensaje',
-            referencia_id: data.id
-          }));
-          
-          const { data: notifData } = await supabase.from('notificaciones').insert(notifs).select();
-          if (notifData) {
-            notifData.forEach(n => dispatch({ type: 'ADD_NOTIFICACION', payload: n }));
-          }
-        }
+        // Notificar a todas las docentes activas de la sala de este mensaje
+        const docentesActivas = new Set(state.docentes.filter(d => d.activo !== false).map(d => d.id));
+        const docentesSala = new Set(
+          state.docenteSalas
+            .filter(ds => ds.sala === data.sala && docentesActivas.has(ds.docente_id))
+            .map(ds => ds.docente_id)
+        );
+
+        await crearNotificaciones(Array.from(docentesSala).map(docenteId => ({
+          jardin_id: state.user?.jardin_id,
+          usuario_id: docenteId,
+          titulo: 'Nuevo mensaje de familia',
+          mensaje: `Tienes un nuevo mensaje de ${data.remitente_nombre}.`,
+          tipo: 'mensaje',
+          referencia_id: data.id
+        })));
       } else if (data.destinatario_id) {
         // Si no es familia (es docente) enviando a una familia específica
-        const notif = {
+        await crearNotificaciones([{
           jardin_id: state.user?.jardin_id,
           usuario_id: data.destinatario_id,
           titulo: 'Nuevo mensaje',
           mensaje: `Tienes un nuevo mensaje de ${data.remitente_nombre}.`,
           tipo: 'mensaje',
           referencia_id: data.id
-        };
-        const { data: notifData, error: notifErr } = await supabase.from('notificaciones').insert([notif]).select().single();
-        if (notifErr) console.error('Error in notif:', notifErr);
-        if (notifData) dispatch({ type: 'ADD_NOTIFICACION', payload: notifData });
+        }]);
       }
     }
-  }, [state.user, state.docenteSalas]);
+  }, [state.user, state.docenteSalas, state.docentes]);
 
   const markMessagesRead = useCallback(async (ids: string[]) => {
     await supabase.from('mensajes').update({ leido: true }).in('id', ids);
@@ -429,27 +428,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Notificar a todas las familias de esa sala
       const familiasToNotify = new Set(
         state.kids
-          .filter(k => k.sala === video.sala && k.familia_id)
-          .map(k => k.familia_id)
+          .filter(k => (video.sala === 'Todas' || k.sala === video.sala) && k.familia_id)
+          .map(k => k.familia_id as string)
       );
-      
-      if (familiasToNotify.size > 0) {
-        const notifs = Array.from(familiasToNotify).map(fid => ({
-          jardin_id: state.user?.jardin_id,
-          usuario_id: fid,
-          titulo: 'Nuevo video en la sala',
-          mensaje: `Se ha subido un nuevo video a la ${video.sala}.`,
-          tipo: 'video',
-          referencia_id: data.id
-        }));
-        
-        const { data: notifData } = await supabase.from('notificaciones').insert(notifs).select();
-        if (notifData) {
-          notifData.forEach(n => dispatch({ type: 'ADD_NOTIFICACION', payload: n }));
-        }
-      }
+
+      await crearNotificaciones(Array.from(familiasToNotify).map(fid => ({
+        jardin_id: state.user?.jardin_id,
+        usuario_id: fid,
+        titulo: 'Nuevo video en la sala',
+        mensaje: video.sala === 'Todas'
+          ? 'Se ha subido un nuevo video para todas las salas.'
+          : `Se ha subido un nuevo video a la ${video.sala}.`,
+        tipo: 'video',
+        referencia_id: data.id
+      })));
     }
-  }, [state.user, state.kids]);
+}, [state.user, state.kids]);
 
   const deleteVideo = useCallback(async (id: string) => {
     const { error } = await supabase.from('videos').delete().eq('id', id);

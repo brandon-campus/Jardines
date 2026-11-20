@@ -31,17 +31,21 @@ export function usePushNotifications() {
 
   const sendNotification = useCallback((title: string, options?: NotificationOptions) => {
     if (permission === 'granted') {
-      const notification = new Notification(title, {
-        icon: '/pwa-192x192.png', // Assuming a standard PWA icon name
-        badge: '/pwa-192x192.png',
-        ...options,
-      });
+      // Chrome en Android no permite new Notification(): ahí solo queda la campanita.
+      try {
+        const notification = new Notification(title, {
+          icon: '/favicon.svg',
+          ...options,
+        });
 
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
-    }
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch (err) {
+        console.warn('No se pudo mostrar la notificación del sistema:', err);
+      }
+}
   }, [permission]);
 
   return { permission, requestPermission, sendNotification };

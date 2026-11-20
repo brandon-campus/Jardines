@@ -49,10 +49,10 @@ export function MessagesTab() {
 
     // Find the last received message from a parent to get their ID
     const lastParentMsg = [...convMsgs].reverse().find(m => m.remitente_id !== state.user?.id);
-    
-    // Si no hay mensaje previo del padre, quizás no deberíamos poder responder o usamos fallback
-    const destinatarioId = lastParentMsg?.remitente_id;
-    const sala = lastParentMsg?.sala || kidMap[ninoId]?.sala || 'Maternal';
+
+    // La familia sale del niño: el último remitente puede ser una docente anterior
+    const destinatarioId = kidMap[ninoId]?.familia_id ?? lastParentMsg?.remitente_id;
+const sala = lastParentMsg?.sala || kidMap[ninoId]?.sala || 'Maternal';
     const turno = lastParentMsg?.turno || 'Mañana';
 
     await addMessage({

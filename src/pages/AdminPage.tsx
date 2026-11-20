@@ -17,6 +17,11 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [showDeactivated, setShowDeactivated] = useState(false);
 
+  // Baja y reemplazo de docente
+  const [bajaDocente, setBajaDocente] = useState<Usuario | null>(null);
+  const [reemplazoId, setReemplazoId] = useState('nueva'); // 'nueva' | 'ninguna' | id de docente
+  const [replacingDocente, setReplacingDocente] = useState<Usuario | null>(null);
+
   // User Creation & Management Modal states
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -167,7 +172,27 @@ export function AdminPage() {
         if (error) throw error;
         if (data.error) throw new Error(data.error);
 
-        showToast(`${userRole === 'docente' ? 'Docente' : 'Familia'} cread@ con éxito`);
+        if (replacingDocente) {
+          // create-user no corta si fallan las salas: confirmarlas antes de quitárselas a la anterior
+          const { count } = await supabase
+            .from('docente_sala')
+            .select('id', { count: 'exact', head: true })
+            .eq('docente_id', data.user.id);
+
+          if ((count ?? 0) < formData.salas.length) {
+            showToast(`Docente creada, pero sin todas las salas. ${replacingDocente.nombre} sigue activa.`, 'err');
+          } else {
+            try {
+              await darDeBajaDocente(replacingDocente, true);
+              showToast(`${finalNombre} reemplazó a ${replacingDocente.nombre}`);
+            } catch (err: any) {
+              showToast(`Docente creada, pero no se pudo dar de baja a ${replacingDocente.nombre}: ${err.message}`, 'err');
+            }
+          }
+          setReplacingDocente(null);
+        } else {
+          showToast(`${userRole === 'docente' ? 'Docente' : 'Familia'} cread@ con éxito`);
+        }
       }
 
       setShowModal(false);
@@ -250,8 +275,68 @@ export function AdminPage() {
     }
   };
 
-  const toggleUserActive = async (user: Usuario) => {
+  const darDeBajaDocente = async (docente: Usuario, quitarSalas: boolean) => {
+    // Con .select() se detecta si RLS descartó el update sin devolver error
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ activo: false })
+      .eq('id', docente.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('No hay permisos para dar de baja a esta docente');
+
+    if (quitarSalas) {
+      const { error: salasError } = await supabase.from('docente_sala').delete().eq('docente_id', docente.id);
+      if (salasError) throw salasError;
+    }
+  };
+
+  const confirmarBajaDocente = async () => {
+    if (!bajaDocente) return;
+
+    const salas = docenteSalas[bajaDocente.id] || [];
+
+    if (reemplazoId === 'nueva') {
+      setEditingUser(null);
+      setReplacingDocente(bajaDocente);
+      setUserRole('docente');
+      setFormData({ nombre: '', email: '', password: '', salas, child_id: '' });
+      setUserAvatarFile(null);
+      setBajaDocente(null);
+      setShowModal(true);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
+      if (reemplazoId === 'ninguna') {
+        await darDeBajaDocente(bajaDocente, false);
+        showToast('Docente dada de baja correctamente');
+      } else {
+        const actuales = docenteSalas[reemplazoId] || [];
+        const nuevas = salas.filter(s => !actuales.includes(s)).map(sala => ({
+          docente_id: reemplazoId,
+          jardin_id: state.user?.jardin_id,
+          sala
+        }));
+        if (nuevas.length > 0) {
+          const { error } = await supabase.from('docente_sala').insert(nuevas);
+          if (error) throw error;
+        }
+        await darDeBajaDocente(bajaDocente, true);
+        showToast('Docente reemplazada: las salas y sus niños pasaron a la nueva docente');
+      }
+      setBajaDocente(null);
+      fetchUsers();
+    } catch (err: any) {
+      showToast('Error al dar de baja: ' + err.message, 'err');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const toggleUserActive = async (user: Usuario) => {
+try {
       const newState = user.activo === false ? true : false;
       const { error } = await supabase.from('profiles').update({ activo: newState }).eq('id', user.id);
       if (error) throw error;
@@ -372,10 +457,11 @@ export function AdminPage() {
                       setShowKidModal(true);
                     } else {
                       setEditingUser(null);
+                      setReplacingDocente(null);
                       setFormData({ nombre: '', email: '', password: '', salas: [], child_id: '' });
                       setUserAvatarFile(null);
                       setUserRole(activeTab === 'docentes' ? 'docente' : 'familia');
-                      setShowModal(true);
+setShowModal(true);
                     }
                   }}
                   className="bg-naranja text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_4px_14px_rgba(255,107,53,0.39)] hover:bg-naranja-600 transition-all hover:scale-105 active:scale-95"
@@ -484,8 +570,15 @@ export function AdminPage() {
                                       ✏️
                                     </button>
                                     <button 
-                                      onClick={() => toggleUserActive(user)}
-                                      className={`transition-colors p-2 border rounded-lg shadow-sm font-bold text-xs ${user.activo !== false ? 'text-red-500 hover:text-red-700 bg-red-50 border-red-100' : 'text-green-500 hover:text-green-700 bg-green-50 border-green-100'}`}
+                                      onClick={() => {
+                                        if (user.rol === 'docente' && user.activo !== false) {
+                                          setReemplazoId('nueva');
+                                          setBajaDocente(user);
+                                        } else {
+                                          toggleUserActive(user);
+                                        }
+                                      }}
+className={`transition-colors p-2 border rounded-lg shadow-sm font-bold text-xs ${user.activo !== false ? 'text-red-500 hover:text-red-700 bg-red-50 border-red-100' : 'text-green-500 hover:text-green-700 bg-green-50 border-green-100'}`}
                                       title={user.activo !== false ? "Dar de Baja" : "Reactivar"}
                                     >
                                       {user.activo !== false ? '⛔' : '✅'}
@@ -668,9 +761,11 @@ export function AdminPage() {
               <h3 className="font-black text-gray-800 text-lg">
                 {editingUser 
                   ? (userRole === 'docente' ? '⚙️ Gestionar Docente' : '⚙️ Gestionar Familia')
-                  : (userRole === 'docente' ? '👩‍🏫 Nueva Docente' : '👨‍👩‍👧 Nueva Familia')
+                  : replacingDocente
+                    ? `👩‍🏫 Reemplazar a ${replacingDocente.nombre}`
+                    : (userRole === 'docente' ? '👩‍🏫 Nueva Docente' : '👨‍👩‍👧 Nueva Familia')
                 }
-              </h3>
+</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
             </div>
             
@@ -785,8 +880,55 @@ export function AdminPage() {
         </div>
       )}
 
+      {/* Modal Baja / Reemplazo de Docente */}
+      {bajaDocente && (() => {
+        const salas = docenteSalas[bajaDocente.id] || [];
+        const cantidadNinos = kids.filter(k => k.activo && salas.includes(k.sala)).length;
+        const otrasDocentes = users.filter(u => u.rol === 'docente' && u.activo !== false && u.id !== bajaDocente.id);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 className="font-black text-gray-800 text-lg">⛔ Dar de baja a {bajaDocente.nombre}</h3>
+                <button onClick={() => setBajaDocente(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-5">
+                <p className="text-sm text-gray-600">
+                  {salas.length > 0
+                    ? <>Tiene a cargo <strong>{salas.join(', ')}</strong> ({cantidadNinos} {cantidadNinos === 1 ? 'niño/a' : 'niños'}). Quien la reemplace recibe esas salas, sus niños y el historial de mensajes.</>
+                    : 'No tiene salas asignadas.'}
+                </p>
+
+                <Select
+                  label="¿Quién la reemplaza?"
+                  value={reemplazoId}
+                  onChange={e => setReemplazoId(e.target.value)}
+                >
+                  <option value="nueva">Agregar una docente nueva</option>
+                  {otrasDocentes.map(d => (
+                    <option key={d.id} value={d.id}>{d.nombre}</option>
+                  ))}
+                  <option value="ninguna">Nadie por ahora (las salas quedan sin docente)</option>
+                </Select>
+
+                <div className="flex gap-3 pt-4 border-t border-gray-100">
+                  <Button type="button" variant="secondary" className="flex-1" onClick={() => setBajaDocente(null)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" className="flex-1" disabled={isSubmitting} onClick={confirmarBajaDocente}>
+                    {isSubmitting ? 'Guardando...' : reemplazoId === 'nueva' ? 'Continuar' : 'Dar de baja'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Modal Agregar/Editar Niño */}
-      {showKidModal && (
+{showKidModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">

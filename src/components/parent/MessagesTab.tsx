@@ -10,9 +10,10 @@ export function ParentMessagesTab() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const kid = state.kids.find(k => k.id === state.user?.childId);
-  const maestrasId = state.docenteSalas.filter(ds => ds.sala === kid?.sala).map(ds => ds.docente_id);
-  const maestras = state.docentes.filter(d => maestrasId.includes(d.id));
-  const maestroName = maestras.length > 0 ? maestras.map(m => m.nombre).join(' y ') : 'Las maestras';
+  const salaIds = state.docenteSalas.filter(ds => ds.sala === kid?.sala).map(ds => ds.docente_id);
+  const maestras = state.docentes.filter(d => salaIds.includes(d.id) && d.activo !== false);
+  const maestrasId = maestras.map(m => m.id);
+const maestroName = maestras.length > 0 ? maestras.map(m => m.nombre).join(' y ') : 'Las maestras';
 
   const msgs = state.messages
     .filter(m => m.nino_id === kid?.id)
